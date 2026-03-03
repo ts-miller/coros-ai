@@ -18,6 +18,7 @@ model Settings {
   userId       String?
   goal         String    @default("Base Building")
   goalDate     DateTime?
+  unitSystem   String    @default("metric")  // "metric" | "imperial"
   updatedAt    DateTime  @updatedAt
 }
 

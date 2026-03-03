@@ -20,8 +20,8 @@
       </mat-card>
       <mat-card class="stat-card">
         <mat-card-content>
-          <div class="stat-value">{{ summary()?.totalDistanceKm ?? 0 }}</div>
-          <div class="stat-label">km (30d)</div>
+          <div class="stat-value">{{ totalDistance }}</div>
+          <div class="stat-label">{{ distanceUnit }} (30d)</div>
         </mat-card-content>
       </mat-card>
       <mat-card class="stat-card">
@@ -70,6 +70,8 @@
                 <td>{{ a.avgHr ?? '—' }}</td>
                 <td>{{ a.trainingLoad?.toFixed(0) ?? '—' }}</td>
               </tr>
+            } @empty {
+              <tr><td colspan="6" class="empty-row">No recent runs found.</td></tr>
             }
           </tbody>
         </table>

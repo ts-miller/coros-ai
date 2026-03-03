@@ -83,6 +83,7 @@ export interface AppSettings {
   goal: string;
   goalDate: string | null;
   corosEmail: string;
+  unitSystem: 'metric' | 'imperial';
 }
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };

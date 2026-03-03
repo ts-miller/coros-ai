@@ -131,7 +131,7 @@ router.get(
   '/settings',
   asyncHandler(async (_req, res) => {
     const settings = await prisma.settings.findFirst({
-      select: { goal: true, goalDate: true, corosEmail: true },
+      select: { goal: true, goalDate: true, corosEmail: true, unitSystem: true },
     });
     ok(res, settings ?? null);
   }),
@@ -140,11 +140,12 @@ router.get(
 router.post(
   '/settings',
   asyncHandler(async (req, res) => {
-    const { goal, goalDate, corosEmail, corosPassword } = req.body as {
+    const { goal, goalDate, corosEmail, corosPassword, unitSystem } = req.body as {
       goal?: string;
       goalDate?: string;
       corosEmail?: string;
       corosPassword?: string;
+      unitSystem?: string;
     };
 
     const existing = await prisma.settings.findFirst();
@@ -154,6 +155,7 @@ router.post(
     if (goalDate !== undefined) data['goalDate'] = goalDate ? new Date(goalDate) : null;
     if (corosEmail !== undefined) data['corosEmail'] = corosEmail;
     if (corosPassword !== undefined) data['corosPwd'] = encrypt(corosPassword);
+    if (unitSystem !== undefined) data['unitSystem'] = unitSystem;
 
     if (existing) {
       const updated = await prisma.settings.update({ where: { id: existing.id }, data });

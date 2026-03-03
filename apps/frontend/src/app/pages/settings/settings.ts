@@ -11,6 +11,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { CorosApiService, AppSettings } from '../../services/coros-api';
 
@@ -19,7 +20,7 @@ const GOALS = ['Base Building', 'Sub-2 Hour Half Marathon', 'Sub-20 min 5K', 'Su
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, MatProgressSpinnerModule, MatDividerModule, MatIconModule, MatSnackBarModule],
+  imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, MatProgressSpinnerModule, MatDividerModule, MatIconModule, MatSlideToggleModule, MatSnackBarModule],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })
@@ -40,7 +41,17 @@ export class Settings implements OnInit {
     corosPassword: '',
     goal: 'Base Building',
     goalDate: null as Date | null,
+    unitSystem: 'metric' as 'metric' | 'imperial',
   };
+
+  get imperialToggle(): boolean {
+    return this.form.unitSystem === 'imperial';
+  }
+
+  onUnitToggle(isImperial: boolean): void {
+    this.form.unitSystem = isImperial ? 'imperial' : 'metric';
+    this.save();
+  }
 
   ngOnInit(): void {
     this.api.getSettings().subscribe({
@@ -49,6 +60,7 @@ export class Settings implements OnInit {
           this.form.corosEmail = s.corosEmail ?? '';
           this.form.goal = s.goal;
           this.form.goalDate = s.goalDate ? new Date(s.goalDate) : null;
+          this.form.unitSystem = s.unitSystem ?? 'metric';
         }
         this.loading.set(false);
       },
@@ -62,6 +74,7 @@ export class Settings implements OnInit {
       goal: this.form.goal,
       goalDate: this.form.goalDate?.toISOString().slice(0, 10),
       corosEmail: this.form.corosEmail,
+      unitSystem: this.form.unitSystem,
       ...(this.form.corosPassword ? { corosPassword: this.form.corosPassword } : {}),
     };
     this.api.saveSettings(payload).subscribe({
