@@ -91,7 +91,7 @@ export class CorosClient {
 
     console.log(`[CorosClient] Fetching activities page ${pageNumber} with modeList=${modeList}, startDay=${startDay}, endDay=${endDay}`);
     const res = await this.authGet<ActivityListResponse>(`/activity/query?${params}`);
-    console.log(`[CorosClient] Received: ${JSON.stringify(res)}`);
+
     return res.data ?? { count: 0, dataList: [], pageNumber: 1, totalPage: 1 };
   }
 
@@ -113,10 +113,10 @@ export class CorosClient {
     labelId: string,
     sportType: number,
   ): Promise<ActivityDetailResponse | null> {
-    const body = { labelId, sportType };
+    const params = new URLSearchParams({ labelId, sportType: String(sportType) });
     const res = await this.authPost<ActivityDetailResponse>(
-      '/activity/detail/query',
-      body,
+      `/activity/detail/query?${params}`,
+      {},
     );
     return res.data ?? null;
   }
