@@ -33,7 +33,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "npx prisma migrate deploy && npx tsx src/index.ts"
+    command: sh -c "npx prisma db push --accept-data-loss && npx tsx src/index.ts"
 
   frontend:
     build:

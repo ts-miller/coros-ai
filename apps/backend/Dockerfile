@@ -1,6 +1,8 @@
 # ── Runtime image ─────────────────────────────────────────────────────────────
 FROM node:22-alpine
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # Copy workspace manifests and install prod deps (tsx is a devDep but needed at runtime)
