@@ -1,0 +1,199 @@
+// Include theming for Angular Material with `mat.theme()`.
+// This Sass mixin will define CSS variables that are used for styling Angular Material
+// components according to the Material 3 design spec.
+// Learn more about theming and how to use it for your application's
+// custom components at https://material.angular.dev/guide/theming
+@use '@angular/material' as mat;
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+body {
+  // Default the application to a light color theme. This can be changed to
+  // `dark` to enable the dark color theme, or to `light dark` to defer to the
+  // user's system settings.
+  color-scheme: light;
+
+  // Set a default background, font and text colors for the application using
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  // Reset the user agent margin.
+  margin: 0;
+  height: 100%;
+}
+
+/* ── Global layout helpers ── */
+* { box-sizing: border-box; }
+
+.page-container {
+  padding: 24px;
+  max-width: 1200px;
+}
+
+.page-title {
+  margin: 0 0 24px;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+
+  .page-title { margin: 0; }
+  .actions { display: flex; gap: 12px; }
+}
+
+.spinner-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80px;
+}
+
+.error-card { background: var(--mat-sys-error-container); }
+.error-banner {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.disclaimer {
+  background: #fff8e1;
+  border-left: 4px solid #f59e0b;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+}
+
+/* ── Chart container ── */
+.chart-container { height: 220px; position: relative; }
+
+/* ── Dashboard ── */
+.summary-strip {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+
+  .stat-card {
+    flex: 1;
+    text-align: center;
+
+    .stat-value { font-size: 2rem; font-weight: 700; color: var(--mat-sys-primary); }
+    .stat-label { font-size: 0.8rem; color: var(--mat-sys-on-surface-variant); margin-top: 4px; }
+  }
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
+}
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    font-size: 0.875rem;
+  }
+  th { font-weight: 600; }
+}
+
+/* ── Schedule ── */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.workout-card {
+  &.rest { opacity: 0.65; }
+
+  .status-chip { margin-left: auto; }
+  .workout-desc { font-size: 0.9rem; margin: 8px 0; }
+  .meta { font-size: 0.8rem; color: var(--mat-sys-on-surface-variant); margin: 2px 0; }
+  .push-error { color: var(--mat-sys-error); font-size: 0.8rem; margin-top: 8px; }
+}
+
+.steps-list {
+  .step-group { margin-bottom: 12px; strong { display: block; margin-bottom: 4px; } }
+  .step { font-size: 0.85rem; padding: 2px 0 2px 12px; border-left: 3px solid var(--mat-sys-primary); margin: 4px 0; }
+}
+
+/* ── Predictions ── */
+.predictions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.prediction-card {
+  text-align: center;
+  .race-label { font-size: 0.85rem; color: var(--mat-sys-on-surface-variant); }
+  .race-time { font-size: 2rem; font-weight: 700; color: var(--mat-sys-primary); margin-top: 8px; }
+}
+
+.note-card {
+  margin-bottom: 16px;
+  mat-card-content { display: flex; gap: 12px; align-items: flex-start; }
+  mat-icon { color: var(--mat-sys-tertiary); margin-top: 2px; }
+}
+
+.generated-at { font-size: 0.8rem; color: var(--mat-sys-on-surface-variant); }
+
+/* ── Settings ── */
+.settings-card { margin-bottom: 24px; max-width: 560px; }
+.full-width { width: 100%; margin-bottom: 12px; }
+.controls-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* ── App shell ── */
+.sidenav-container { height: 100vh; }
+.sidenav {
+  width: 220px;
+  padding: 0;
+
+  .sidenav-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 16px 16px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+    .logo-icon { font-size: 2rem; color: var(--mat-sys-primary); }
+    .app-name { font-size: 1.1rem; font-weight: 700; }
+  }
+
+  .active-link { background: var(--mat-sys-primary-container) !important; }
+}
+
+.main-content { display: flex; flex-direction: column; overflow-y: auto; }
+.toolbar { flex-shrink: 0; }
+.content-area { flex: 1; overflow-y: auto; }

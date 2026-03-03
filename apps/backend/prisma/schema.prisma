@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Settings {
+  id           Int       @id @default(autoincrement())
+  corosEmail   String
+  corosPwd     String    // AES-256 encrypted
+  accessToken  String?
+  userId       String?
+  goal         String    @default("Base Building")
+  goalDate     DateTime?
+  updatedAt    DateTime  @updatedAt
+}
+
+model Activity {
+  id            Int      @id @default(autoincrement())
+  labelId       String   @unique
+  date          Int      // YYYYMMDD
+  sportType     Int      // 100=Run, 101=IndoorRun, 102=TrailRun, 103=TrackRun
+  name          String
+  distance      Float    // metres
+  totalTime     Int      // seconds
+  avgHr         Int?
+  maxHr         Int?
+  avgPace       Float?   // seconds per km
+  trainingLoad  Float?
+  aerobicEffect Float?
+  calories      Int?
+  startTime     BigInt?
+  endTime       BigInt?
+  rawSummary    Json?    // full summary object from Coros
+  syncedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
+
+model HealthMetric {
+  id             Int      @id @default(autoincrement())
+  date           Int      @unique // YYYYMMDD
+  sleepDuration  Float?   // hours
+  restingHr      Int?     // bpm
+  hrv            Float?   // ms
+  isMock         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum WorkoutStatus {
+  PENDING
+  PUSHED
+  FAILED
+  SKIPPED
+}
+
+model WorkoutPlan {
+  id             Int           @id @default(autoincrement())
+  date           Int           // YYYYMMDD
+  title          String
+  description    String
+  stepsJson      Json          // AI-generated structured workout steps
+  status         WorkoutStatus @default(PENDING)
+  corosWorkoutId String?       // set after successful push
+  pushError      String?       // error message if push failed
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([date])
+  @@index([status])
+}

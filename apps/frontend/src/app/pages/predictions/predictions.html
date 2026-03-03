@@ -1,0 +1,40 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">Race Predictions</h1>
+    <button mat-stroked-button (click)="load()" [disabled]="loading()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="spinner-center"><mat-spinner diameter="48" /></div>
+  } @else if (error()) {
+    <mat-card class="error-card"><mat-card-content>{{ error() }}</mat-card-content></mat-card>
+  } @else {
+    <div class="predictions-grid">
+      @for (race of races; track race.key) {
+        @if (predictions()?.[race.key]) {
+          <mat-card class="prediction-card">
+            <mat-card-content>
+              <div class="race-label">{{ race.label }}</div>
+              <div class="race-time">{{ predictions()![race.key] }}</div>
+            </mat-card-content>
+          </mat-card>
+        }
+      }
+    </div>
+
+    @if (predictions()?.note) {
+      <mat-card class="note-card">
+        <mat-card-content>
+          <mat-icon>tips_and_updates</mat-icon>
+          <p>{{ predictions()!.note }}</p>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (predictions()?.generatedAt) {
+      <p class="generated-at">Last updated: {{ formatTs(predictions()!.generatedAt) }}</p>
+    }
+  }
+</div>

@@ -1,0 +1,25 @@
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav mode="side" opened class="sidenav">
+    <div class="sidenav-header">
+      <mat-icon class="logo-icon">directions_run</mat-icon>
+      <span class="app-name">Coros AI</span>
+    </div>
+    <mat-nav-list>
+      @for (link of navLinks; track link.path) {
+        <a mat-list-item [routerLink]="link.path" routerLinkActive="active-link">
+          <mat-icon matListItemIcon>{{ link.icon }}</mat-icon>
+          <span matListItemTitle>{{ link.label }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="main-content">
+    <mat-toolbar color="primary" class="toolbar">
+      <span>AI Running Coach</span>
+    </mat-toolbar>
+    <div class="content-area">
+      <router-outlet />
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

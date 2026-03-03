@@ -1,0 +1,79 @@
+<div class="page-container">
+  <h1 class="page-title">Dashboard</h1>
+
+  @if (loading()) {
+    <div class="spinner-center">
+      <mat-spinner diameter="48" />
+    </div>
+  } @else if (error()) {
+    <mat-card class="error-card">
+      <mat-card-content>{{ error() }}</mat-card-content>
+    </mat-card>
+  } @else {
+    <!-- Summary strip -->
+    <div class="summary-strip">
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ summary()?.totalActivities ?? 0 }}</div>
+          <div class="stat-label">Runs (30d)</div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ summary()?.totalDistanceKm ?? 0 }}</div>
+          <div class="stat-label">km (30d)</div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="stat-card">
+        <mat-card-content>
+          <div class="stat-value">{{ summary()?.avgTrainingLoad ?? 0 }}</div>
+          <div class="stat-label">Avg Load</div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    @if (mockDisclaimer()) {
+      <div class="disclaimer">⚠️ {{ mockDisclaimer() }}</div>
+    }
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <mat-card>
+        <mat-card-header><mat-card-title>Training Load (14 days)</mat-card-title></mat-card-header>
+        <mat-card-content class="chart-container">
+          <canvas baseChart [data]="trainingLoadChart" [options]="chartOptions" type="bar"></canvas>
+        </mat-card-content>
+      </mat-card>
+      <mat-card>
+        <mat-card-header><mat-card-title>Sleep Duration (14 days)</mat-card-title></mat-card-header>
+        <mat-card-content class="chart-container">
+          <canvas baseChart [data]="sleepChart" [options]="chartOptions" type="line"></canvas>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Recent activities -->
+    <mat-card class="activities-card">
+      <mat-card-header><mat-card-title>Recent Runs</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <table class="activity-table">
+          <thead>
+            <tr><th>Date</th><th>Name</th><th>Distance</th><th>Avg Pace</th><th>Avg HR</th><th>Load</th></tr>
+          </thead>
+          <tbody>
+            @for (a of activities(); track a.labelId) {
+              <tr>
+                <td>{{ formatDate(a.date) }}</td>
+                <td>{{ a.name }}</td>
+                <td>{{ formatDistance(a.distance) }}</td>
+                <td>{{ formatPace(a.avgPace) }}</td>
+                <td>{{ a.avgHr ?? '—' }}</td>
+                <td>{{ a.trainingLoad?.toFixed(0) ?? '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

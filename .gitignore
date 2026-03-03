@@ -134,3 +134,12 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Project-specific
+.env
+.env.local
+dist/
+apps/backend/dist/
+apps/frontend/dist/
+.angular/cache/
+apps/backend/src/generated/
