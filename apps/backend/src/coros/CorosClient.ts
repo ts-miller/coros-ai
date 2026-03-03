@@ -89,7 +89,9 @@ export class CorosClient {
       ...(endDay !== undefined ? { endDay: String(endDay) } : {}),
     });
 
+    console.log(`[CorosClient] Fetching activities page ${pageNumber} with modeList=${modeList}, startDay=${startDay}, endDay=${endDay}`);
     const res = await this.authGet<ActivityListResponse>(`/activity/query?${params}`);
+    console.log(`[CorosClient] Received: ${JSON.stringify(res)}`);
     return res.data ?? { count: 0, dataList: [], pageNumber: 1, totalPage: 1 };
   }
 
@@ -172,8 +174,8 @@ export class CorosClient {
     }
 
     const json = (await response.json()) as CorosApiResponse<T>;
-    if (json.result === '1030') {
-      console.warn('[CorosClient] Session expired, re-logging in...');
+    if (json.result === '1030' || json.result === '1019') {
+      console.warn(`[CorosClient] Token invalid/expired (${json.result}), re-logging in...`);
       await this.login();
       return this.authGet<T>(path);
     }
@@ -201,8 +203,8 @@ export class CorosClient {
     }
 
     const json = (await response.json()) as CorosApiResponse<T>;
-    if (json.result === '1030') {
-      console.warn('[CorosClient] Session expired, re-logging in...');
+    if (json.result === '1030' || json.result === '1019') {
+      console.warn(`[CorosClient] Token invalid/expired (${json.result}), re-logging in...`);
       await this.login();
       return this.authPost<T>(path, body);
     }

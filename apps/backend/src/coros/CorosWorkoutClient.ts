@@ -25,7 +25,11 @@ export class CorosWorkoutClient {
       return;
     }
 
-    // Re-login
+    await this.relogin();
+  }
+
+  private async relogin(): Promise<void> {
+    const settings = await prisma.settings.findFirst();
     if (!settings) throw new Error('No settings found');
     const plainPwd = decrypt(settings.corosPwd);
     const body = { account: settings.corosEmail, accountType: 2, pwd: md5(plainPwd) };
@@ -40,10 +44,16 @@ export class CorosWorkoutClient {
 
     this.accessToken = json.data.accessToken;
     this.userId = json.data.userId;
+    // Reset cached token so ensureAuth won't short-circuit on next call
     await prisma.settings.update({
       where: { id: settings.id },
       data: { accessToken: this.accessToken, userId: this.userId },
     });
+    console.log('[CorosWorkoutClient] Re-logged in, userId:', this.userId);
+  }
+
+  private isTokenError(result: string): boolean {
+    return result === '1019' || result === '1030';
   }
 
   private authHeaders(): Record<string, string> {
@@ -177,13 +187,18 @@ export class CorosWorkoutClient {
     };
   }
 
-  async calculateWorkout(payload: CorosWorkoutPayload): Promise<CorosCalculateResult> {
+  async calculateWorkout(payload: CorosWorkoutPayload, retry = true): Promise<CorosCalculateResult> {
     const res = await fetch(`${COROS_BASE_URL}/training/program/calculate`, {
       method: 'POST',
       headers: this.authHeaders(),
       body: JSON.stringify(payload),
     });
     const json = (await res.json()) as CorosApiResponse<CorosCalculateResult>;
+    if (this.isTokenError(json.result) && retry) {
+      console.warn(`[CorosWorkoutClient] Token invalid/expired (${json.result}), re-logging in...`);
+      await this.relogin();
+      return this.calculateWorkout(payload, false);
+    }
     if (json.result !== '0000' || !json.data) {
       throw new Error(`Calculate failed (${json.result}): ${json.message}`);
     }
@@ -228,6 +243,12 @@ export class CorosWorkoutClient {
       json = JSON.parse(text) as CorosApiResponse<{ id?: string }>;
     } catch {
       throw new Error(`Coros /add non-JSON response: ${text.slice(0, 500)}`);
+    }
+
+    if (this.isTokenError(json.result)) {
+      console.warn(`[CorosWorkoutClient] Token invalid/expired (${json.result}) on /add, re-logging in and retrying...`);
+      await this.relogin();
+      return this.createWorkout(workout);
     }
 
     if (json.result !== '0000') {
