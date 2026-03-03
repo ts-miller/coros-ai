@@ -1,5 +1,7 @@
 # Coros AI — AI-Powered Running Coach
 
+> **Note:** This project is primarily coded using AI.
+
 A self-hosted, AI-powered running coach that integrates directly with the Coros ecosystem. Syncs training data and sleep metrics, generates personalised rolling 7-day schedules using Gemini, and pushes workouts directly to your Coros watch via the Training Hub.
 
 ## Stack
@@ -105,4 +107,11 @@ cd apps/backend && npx prisma migrate dev --name <migration_name>
 # Production (run automatically on Docker startup)
 npx prisma migrate deploy
 ```
+
+## Credits
+
+This project adapts patterns from the following open-source repositories to integrate with the undocumented Coros API:
+
+- **[jmn8718/coros-connect](https://github.com/jmn8718/coros-connect)** — HTTP patterns for authenticating with Coros and fetching activity/health data.
+- **[rowlando/coros-workout-mcp](https://github.com/rowlando/coros-workout-mcp)** — Reverse-engineered endpoint structures for pushing workouts to the Coros Training Hub.
 AI integration for Coros Fitness Watches
