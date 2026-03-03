@@ -4,12 +4,12 @@ import { decrypt } from '../lib/crypto.js';
 import {
   COROS_BASE_URL,
   CorosApiResponse,
+  CorosActivity,
   LoginData,
   LoginRequest,
   ActivityListResponse,
   ActivityDetailResponse,
   RUNNING_SPORT_TYPES,
-  SportTypeValue,
 } from '../types/coros.js';
 
 export class CorosClient {
@@ -69,37 +69,41 @@ export class CorosClient {
 
   // ─── Activities ──────────────────────────────────────────────────────────────
 
-  async getActivities(
-    startDay: number,
-    endDay: number,
-    sportType?: SportTypeValue,
-    pageNumber = 1,
-    size = 50,
-  ): Promise<ActivityListResponse> {
+  async getActivities(options: {
+    pageNumber?: number;
+    size?: number;
+    /** Comma-separated sport-type codes, e.g. "100,101,102,103". Empty string = all modes. */
+    modeList?: string;
+    /** YYYYMMDD */
+    startDay?: number;
+    /** YYYYMMDD */
+    endDay?: number;
+  } = {}): Promise<ActivityListResponse> {
+    const { pageNumber = 1, size = 50, modeList = '', startDay, endDay } = options;
+
     const params = new URLSearchParams({
-      startDay: String(startDay),
-      endDay: String(endDay),
-      pageNumber: String(pageNumber),
       size: String(size),
-      ...(sportType !== undefined ? { sportType: String(sportType) } : {}),
+      pageNumber: String(pageNumber),
+      modeList,
+      ...(startDay !== undefined ? { startDay: String(startDay) } : {}),
+      ...(endDay !== undefined ? { endDay: String(endDay) } : {}),
     });
 
     const res = await this.authGet<ActivityListResponse>(`/activity/query?${params}`);
-    return res.data ?? { count: 0, dataList: [] };
+    return res.data ?? { count: 0, dataList: [], pageNumber: 1, totalPage: 1 };
   }
 
-  async getAllRunningActivities(startDay: number, endDay: number) {
-    const all = [];
-    for (const sportType of RUNNING_SPORT_TYPES) {
-      let page = 1;
-      let hasMore = true;
-      while (hasMore) {
-        const result = await this.getActivities(startDay, endDay, sportType, page, 50);
-        all.push(...result.dataList);
-        hasMore = result.dataList.length === 50;
-        page++;
-      }
-    }
+  async getAllRunningActivities(options: { startDay?: number; endDay?: number } = {}) {
+    const modeList = RUNNING_SPORT_TYPES.join(',');
+    const all: CorosActivity[] = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const result = await this.getActivities({ pageNumber: page, size: 50, modeList, ...options });
+      all.push(...result.dataList);
+      totalPages = result.totalPage;
+      page++;
+    } while (page <= totalPages);
     return all;
   }
 

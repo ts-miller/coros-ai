@@ -9,7 +9,7 @@ export function startCronJobs(): void {
   cron.schedule('0 2 * * *', async () => {
     console.log('[Cron] Daily sync starting...');
     try {
-      await runActivitySync(30);
+      await runActivitySync();
       await runHealthMetricSync(30);
       console.log('[Cron] Daily sync complete');
     } catch (err) {

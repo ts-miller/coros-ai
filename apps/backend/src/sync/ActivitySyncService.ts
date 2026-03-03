@@ -1,21 +1,10 @@
 import { corosClient } from '../coros/CorosClient.js';
 import { prisma } from '../lib/prisma.js';
 
-/**
- * Returns a YYYYMMDD integer for N days ago.
- */
-function daysAgo(n: number): number {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return Number(d.toISOString().slice(0, 10).replace(/-/g, ''));
-}
+export async function runActivitySync(): Promise<{ synced: number; errors: number }> {
+  console.log('[ActivitySync] Starting sync...');
 
-export async function runActivitySync(lookbackDays = 30): Promise<{ synced: number; errors: number }> {
-  console.log(`[ActivitySync] Starting sync for last ${lookbackDays} days...`);
-  const startDay = daysAgo(lookbackDays);
-  const endDay = daysAgo(0);
-
-  const activities = await corosClient.getAllRunningActivities(startDay, endDay);
+  const activities = await corosClient.getAllRunningActivities();
   console.log(`[ActivitySync] Fetched ${activities.length} running activities from Coros`);
 
   let synced = 0;

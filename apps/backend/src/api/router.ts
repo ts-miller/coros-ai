@@ -182,7 +182,7 @@ router.post(
 router.post(
   '/sync',
   asyncHandler(async (_req, res) => {
-    const result = await runActivitySync(30);
+    const result = await runActivitySync();
     await runHealthMetricSync(30);
     ok(res, result);
   }),

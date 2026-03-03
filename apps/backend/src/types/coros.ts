@@ -54,32 +54,78 @@ export interface CorosApiResponse<T = unknown> {
 
 // ─── Activities ───────────────────────────────────────────────────────────────
 
+/** Shape returned by GET /activity/query */
 export interface CorosActivity {
+  adjustedPace: number;
+  ascent: number;
+  avg5x10s: number;
+  avgCadence: number;
+  avgHr: number;
+  avgPower: number;
+  avgSpeed: number;
+  avgStrkRate: number;
+  best: number;
+  best500m: number;
+  bestKm: number;
+  bestLen: number;
+  bodyTemperature: number;
+  cadence: number;
+  /** calories × 1000 (divide by 1000 for kcal) */
+  calorie: number;
   date: number;
+  descent: number;
   device: string;
+  deviceId: string;
+  deviceSportMode: number;
   distance: number;
-  imageUrl: string;
+  downhillDesc: number;
+  downhillDist: number;
+  downhillTime: number;
   endTime: number;
   endTimezone: number;
+  hasMessage: number;
+  imageUrl: string;
+  imageUrlType: number;
+  isRunTest: number;
+  isShowMs: number;
   labelId: string;
+  lengths: number;
+  max2s: number;
+  maxSlope: number;
+  maxSpeed: number;
+  /** activity mode / sub-sport code */
+  mode: number;
   name: string;
+  np: number;
+  pitch: number;
+  sets: number;
+  speedType: number;
   sportType: number;
-  total: number;
   startTime: number;
   startTimezone: number;
+  step: number;
+  subMode: number;
+  swolf: number;
+  testMaxHr: number;
+  testThresholdHr: number;
+  /** threshold pace in seconds per km */
+  testThresholdPace: number;
+  total: number;
+  totalDescent: number;
+  totalFishingTime: number;
+  totalReps: number;
   totalTime: number;
   trainingLoad: number;
   unitType: number;
+  waterTemperature: number;
   workoutTime: number;
 }
 
 export interface ActivityListResponse {
   count: number;
   dataList: CorosActivity[];
-  pageable?: {
-    page: number;
-    pageSize: number;
-  };
+  pageNumber: number;
+  totalPage: number;
 }
 
 export interface ActivitySummary {
