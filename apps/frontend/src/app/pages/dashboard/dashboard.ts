@@ -49,7 +49,6 @@ export class Dashboard implements OnInit {
       settings: this.api.getSettings(),
     }).subscribe({
       next: ({ acts, health, settings }) => {
-        console.log(acts.activities);
         this.unitSystem.set(settings?.unitSystem ?? 'metric');
         this.activities.set(acts.activities);
         this.summary.set(acts.summary);
