@@ -92,7 +92,7 @@ router.get(
     ok(res, {
       metrics,
       mockDataDisclaimer: hasMock
-        ? 'Some health metrics are placeholder data. Sleep and HRV data from Coros is not yet available through the API.'
+        ? 'Some health metrics are placeholder data. Sleep data from Coros is not yet available through the API.'
         : null,
     });
   }),

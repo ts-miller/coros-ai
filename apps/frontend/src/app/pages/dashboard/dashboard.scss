@@ -14,7 +14,7 @@
 
   .stat-label {
     font-size: 0.8rem;
-    color: rgba(0,0,0,0.5);
+    color: var(--mat-sys-on-surface-variant);
     margin-top: 4px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -42,24 +42,24 @@
     padding: 10px 12px;
     text-align: left;
     font-size: 0.875rem;
-    border-bottom: 1px solid rgba(0,0,0,0.08);
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
   }
 
   th {
     font-weight: 600;
-    color: rgba(0,0,0,0.55);
+    color: var(--mat-sys-on-surface-variant);
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.05em;
   }
 
-  tbody tr:hover { background: rgba(0,0,0,0.02); }
+  tbody tr:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent); }
   tbody tr:last-child td { border-bottom: none; }
 }
 
 .empty-row {
   text-align: center !important;
-  color: rgba(0,0,0,0.4);
+  color: var(--mat-sys-on-surface-variant);
   padding: 32px !important;
 }
 
