@@ -12,21 +12,24 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { CorosApiService, AppSettings } from '../../services/coros-api';
+import { ThemeService, Theme } from '../../services/theme.service';
 
 const GOALS = ['Base Building', 'Sub-2 Hour Half Marathon', 'Sub-20 min 5K', 'Sub-45 min 10K', 'Marathon PR', 'Custom'];
 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, MatProgressSpinnerModule, MatDividerModule, MatIconModule, MatSlideToggleModule, MatSnackBarModule],
+  imports: [CommonModule, FormsModule, MatCardModule, MatButtonModule, MatButtonToggleModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatNativeDateModule, MatProgressSpinnerModule, MatDividerModule, MatIconModule, MatSlideToggleModule, MatSnackBarModule],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })
 export class Settings implements OnInit {
   private readonly api = inject(CorosApiService);
   private readonly snack = inject(MatSnackBar);
+  readonly themeService = inject(ThemeService);
 
   goals = GOALS;
   loading = signal(true);
@@ -51,6 +54,10 @@ export class Settings implements OnInit {
   onUnitToggle(isImperial: boolean): void {
     this.form.unitSystem = isImperial ? 'imperial' : 'metric';
     this.save();
+  }
+
+  onThemeChange(t: Theme): void {
+    this.themeService.setTheme(t);
   }
 
   ngOnInit(): void {

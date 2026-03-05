@@ -5,11 +5,15 @@
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 
+// Base theme: typography, density, and light color tokens.
+// This also serves as the fallback for .light-theme.
 html {
   height: 100%;
+  color-scheme: light;
   @include mat.theme(
     (
       color: (
+        theme-type: light,
         primary: mat.$azure-palette,
         tertiary: mat.$blue-palette,
       ),
@@ -19,15 +23,39 @@ html {
   );
 }
 
-body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
+// Dark theme — color-only override.
+html.dark-theme {
+  color-scheme: dark;
+  @include mat.theme(
+    (
+      color: (
+        theme-type: dark,
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+      ),
+    )
+  );
+}
 
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
+// System theme — follow OS preference.
+@media (prefers-color-scheme: dark) {
+  html.system-theme {
+    color-scheme: dark;
+    @include mat.theme(
+      (
+        color: (
+          theme-type: dark,
+          primary: mat.$azure-palette,
+          tertiary: mat.$blue-palette,
+        ),
+      )
+    );
+  }
+}
+
+body {
+  // Background, font and text colors use Angular Material system-level CSS
+  // variables so they automatically reflect the active color scheme.
   background-color: var(--mat-sys-surface);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
