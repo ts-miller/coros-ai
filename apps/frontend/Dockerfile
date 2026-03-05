@@ -14,6 +14,6 @@ RUN npm run build -- --configuration=production
 FROM nginx:alpine AS runner
 
 COPY --from=builder /app/apps/frontend/dist/frontend/browser /usr/share/nginx/html
-COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/frontend/nginx.conf /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
