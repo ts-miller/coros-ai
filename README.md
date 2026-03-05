@@ -47,10 +47,18 @@ cp .env.example .env
 
 Edit `.env` and fill in:
 - `POSTGRES_PASSWORD` — any strong password
-- `ENCRYPTION_KEY` — 64-char hex string: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- `ENCRYPTION_KEY` — 64-char hex string (encrypts Coros credentials at rest in the DB)
+- `API_KEY` — 64-char hex string (authenticates all API requests between nginx and the backend)
 - `GEMINI_API_KEY` — from [Google AI Studio](https://aistudio.google.com/apikey)
 
+Generate `ENCRYPTION_KEY` and `API_KEY` with:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
 > Coros credentials are stored encrypted in the database via the Settings page.
+
+> **Security:** All `/api` requests require the `X-API-Key` header matching `API_KEY`. nginx injects this automatically when proxying — the Angular frontend requires no changes. Direct requests to port 3000 (if exposed) without the header will receive `401 Unauthorized`.
 
 ### 2. Docker
 
