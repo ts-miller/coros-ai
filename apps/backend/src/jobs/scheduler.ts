@@ -10,7 +10,7 @@ export function startCronJobs(): void {
     console.log('[Cron] Daily sync starting...');
     try {
       await runActivitySync();
-      await runHealthMetricSync(30);
+      await runHealthMetricSync();
       console.log('[Cron] Daily sync complete');
     } catch (err) {
       console.error('[Cron] Daily sync failed:', err);

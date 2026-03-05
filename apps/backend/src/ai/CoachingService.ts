@@ -2,6 +2,29 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { prisma } from '../lib/prisma.js';
 import { AiWorkoutDay } from '../types/coros.js';
 
+// ─── Strongly-typed shapes for the Prisma selects used in runAiCoaching ──────
+
+interface ActivityRow {
+  date: number;
+  sportType: number;
+  name: string;
+  distance: number;
+  totalTime: number;
+  avgHr: number | null;
+  maxHr: number | null;
+  avgPace: number | null;
+  trainingLoad: number | null;
+  aerobicEffect: number | null;
+  calories: number | null;
+}
+
+interface HealthMetricRow {
+  date: number;
+  restingHr: number | null;
+  hrv: number | null;
+  isMock: boolean;
+}
+
 // ─── JSON Schema for the 7-day plan ──────────────────────────────────────────
 
 const WORKOUT_STEP_SCHEMA = {
@@ -49,7 +72,18 @@ progressive overload, and injury prevention.
 You will be given a JSON object containing:
 - "goal": the athlete's current training goal and target race date
 - "activities": an array of the last 30 days of training activities (from most to least recent)
-- "healthMetrics": an array of daily health data (sleep, resting HR, HRV)
+- "healthMetrics": an array of daily health data (resting HR, HRV). Sleep duration is not available.
+
+HRV interpretation rules (apply these before generating the plan):
+- HRV values come from overnight measurements (same source as the COROS "Overnight HRV" graph).
+- Calculate the 7-day rolling average HRV from the most recent 7 days with data.
+- Compare today's HRV (or most recent available) to the 7-day average:
+  * HRV ≥ 97% of 7-day average → green flag: normal or fresh, proceed with planned load.
+  * HRV 90–97% of 7-day average → yellow flag: reduce intensity by one zone; no intervals.
+  * HRV < 90% of 7-day average → red flag: easy/recovery day only, no hard efforts.
+- A rising HRV trend over 3+ days signals good adaptation; progressive load is safe.
+- A falling HRV trend over 3+ days signals cumulative fatigue; hold volume, cut intensity.
+- Elevated resting HR (>5 bpm above the athlete's recent baseline) reinforces a fatigue signal.
 
 Your task is to generate a personalised rolling 7-day training plan starting from tomorrow's date.
 
@@ -57,7 +91,7 @@ Rules:
 1. Vary intensity: hard/easy days must alternate (80/20 principle — 80% easy, 20% hard).
 2. Weekly long run on Saturday or Sunday.
 3. Include at least one full rest day per week.
-4. If recent resting HR or HRV indicates fatigue, increase easy days and reduce intensity.
+4. If HRV signals fatigue (yellow or red flag), increase easy days and reduce intensity for that week.
 5. Progressive overload: increase weekly volume by no more than 10% compared to the previous week.
 6. All paces in seconds per km (e.g. 5:00/km = 300). All distances in metres.
 7. HR zones: 1=very easy (<65% max HR), 2=easy (65–75%), 3=moderate (75–85%), 4=hard (85–92%), 5=max (>92%).
@@ -77,7 +111,7 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   if (!settings) throw new Error('No settings found');
 
   // Fetch last 30 days of data
-  const [activities, healthMetrics] = await Promise.all([
+  const [activities, healthMetrics]: [ActivityRow[], HealthMetricRow[]] = await Promise.all([
     prisma.activity.findMany({
       orderBy: { date: 'desc' },
       take: 60,
@@ -100,7 +134,6 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
       take: 30,
       select: {
         date: true,
-        sleepDuration: true,
         restingHr: true,
         hrv: true,
         isMock: true,
@@ -112,9 +145,63 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
     ? settings.goalDate.toISOString().slice(0, 10)
     : 'No specific race date set';
 
+  // ── Pre-compute HRV context so Gemini doesn't have to derive it ─────────────
+  const hrvValues = healthMetrics
+    .filter((m) => m.hrv !== null)
+    .slice(0, 7) // most recent 7 days with HRV
+    .map((m) => m.hrv as number);
+
+  const hrv7dAvg = hrvValues.length
+    ? Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length)
+    : null;
+
+  const latestHrv = hrvValues[0] ?? null;
+
+  let hrvFlag: 'green' | 'yellow' | 'red' | 'insufficient' = 'insufficient';
+  if (hrv7dAvg !== null && latestHrv !== null) {
+    const ratio = latestHrv / hrv7dAvg;
+    if (ratio >= 0.97) hrvFlag = 'green';
+    else if (ratio >= 0.90) hrvFlag = 'yellow';
+    else hrvFlag = 'red';
+  }
+
+  const hrvTrend: 'rising' | 'falling' | 'stable' | 'insufficient' =
+    hrvValues.length >= 3
+      ? hrvValues[0] > hrvValues[2]
+        ? 'rising'
+        : hrvValues[0] < hrvValues[2]
+        ? 'falling'
+        : 'stable'
+      : 'insufficient';
+
+  const rhrValues = healthMetrics
+    .filter((m) => m.restingHr !== null)
+    .slice(0, 7)
+    .map((m) => m.restingHr as number);
+
+  const rhr7dAvg = rhrValues.length
+    ? Math.round(rhrValues.reduce((a, b) => a + b, 0) / rhrValues.length)
+    : null;
+
+  const latestRhr = rhrValues[0] ?? null;
+  const rhrElevated = rhr7dAvg !== null && latestRhr !== null && latestRhr - rhr7dAvg > 5;
+
+  const hrvContext = {
+    latestHrv,
+    hrv7dAvg,
+    hrvFlag,
+    hrvTrend,
+    latestRhr,
+    rhr7dAvg,
+    rhrElevated,
+    note: 'HRV values are overnight measurements from COROS avgSleepHrv. Sleep duration not available.',
+  };
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const userContent = JSON.stringify(
     {
       goal: { description: settings.goal, targetDate },
+      hrvContext,
       activities,
       healthMetrics,
     },

@@ -252,3 +252,35 @@ export interface CorosCalculateResult {
   totalSets: number;
   trainingLoad: number;
 }
+
+// ─── Training Analysis (/analyse/query) ──────────────────────────────────────
+
+/** One day entry from the /analyse/query dayList */
+export interface AnalyseDayRecord {
+  happenDay: number;        // YYYYMMDD
+  timestamp: number;        // unix seconds (UTC midnight)
+  rhr?: number;             // resting heart rate (bpm)
+  testRhr?: number;         // measured RHR from device test
+  avgSleepHrv?: number;     // overnight HRV average (ms) — the line shown in the graph
+  sleepHrvBase?: number;    // personal HRV baseline (ms) — shaded reference area
+  /** Quartile array: [intervalCount, p25, p50, p75] */
+  sleepHrvIntervalList?: number[];
+  trainingLoad?: number;
+  t7d?: number;             // 7-day cumulative training load
+  t28d?: number;            // 28-day cumulative training load
+  tiredRate?: number;
+  tiredRateNew?: number;
+  ati?: number;
+  cti?: number;
+  vo2max?: number;
+  staminaLevel?: number;
+  performance?: number;     // 2=good, -1=unknown
+  distance?: number;
+  duration?: number;
+}
+
+export interface AnalyseQueryData {
+  dayList: AnalyseDayRecord[];
+  t7dayList?: AnalyseDayRecord[];
+  weekList?: Array<{ firstDayOfWeek: number; trainingLoad: number; recomendTlMax?: number; recomendTlMin?: number }>;
+}

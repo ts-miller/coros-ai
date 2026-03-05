@@ -1,62 +1,50 @@
 import { prisma } from '../lib/prisma.js';
-
-/**
- * Generates mock health metrics when real Coros health endpoints are unavailable.
- *
- * NOTE: Coros does not currently expose sleep/HRV data through any known
- * reverse-engineered API endpoint. When a real endpoint is discovered, replace
- * `generateMockMetric` with actual API calls. All mock records are flagged with
- * `isMock: true` so the UI can display a disclaimer to the user.
- */
-
-function randBetween(min: number, max: number): number {
-  return Math.round((Math.random() * (max - min) + min) * 10) / 10;
-}
-
-function generateMockMetric(dateInt: number) {
-  return {
-    sleepDuration: randBetween(5.5, 8.5),   // hours
-    restingHr: Math.round(randBetween(44, 58)), // bpm
-    hrv: randBetween(35, 75),                 // ms
-    isMock: true,
-  };
-}
-
-function daysAgo(n: number): number {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return Number(d.toISOString().slice(0, 10).replace(/-/g, ''));
-}
+import { corosClient } from '../coros/CorosClient.js';
 
 function dateIntToYYYYMMDD(d: number): string {
   const s = String(d);
   return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 }
 
-export async function runHealthMetricSync(lookbackDays = 30): Promise<{ upserted: number }> {
-  console.log(`[HealthSync] Syncing health metrics for last ${lookbackDays} days (mock mode)...`);
+export async function runHealthMetricSync(): Promise<{ upserted: number }> {
+  console.log('[HealthSync] Syncing health metrics from Coros /analyse/query (last ~4 weeks)...');
+
+  let data = null;
+  try {
+    data = await corosClient.getTrainingAnalysis();
+  } catch (err) {
+    console.warn('[HealthSync] /analyse/query failed, falling back to no-op:', err);
+  }
+
+  if (!data || !data.dayList?.length) {
+    console.warn('[HealthSync] No data returned from /analyse/query. Skipping sync.');
+    return { upserted: 0 };
+  }
 
   let upserted = 0;
 
-  for (let i = 0; i < lookbackDays; i++) {
-    const dateInt = daysAgo(i);
+  for (const day of data.dayList) {
+    const dateInt = day.happenDay;
 
-    // Skip if we already have a real metric for this date
-    const existing = await prisma.healthMetric.findUnique({ where: { date: dateInt } });
-    if (existing && !existing.isMock) {
-      continue; // real data present, skip
-    }
+    // Only store days where we have at least one useful metric
+    if (day.avgSleepHrv === undefined && day.rhr === undefined) continue;
 
-    const mock = generateMockMetric(dateInt);
+    const payload = {
+      hrv: day.avgSleepHrv ?? null,
+      restingHr: day.rhr ?? null,
+      // sleepDuration is not available from this endpoint
+      isMock: false,
+    };
 
     await prisma.healthMetric.upsert({
       where: { date: dateInt },
-      create: { date: dateInt, ...mock },
-      update: mock,
+      create: { date: dateInt, ...payload },
+      update: payload,
     });
     upserted++;
   }
 
-  console.log(`[HealthSync] Done. upserted=${upserted}`);
+  console.log(`[HealthSync] Done. upserted=${upserted} real records from /analyse/query over last ~4 weeks.`);
   return { upserted };
 }
+

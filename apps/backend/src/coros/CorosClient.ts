@@ -10,6 +10,7 @@ import {
   ActivityListResponse,
   ActivityDetailResponse,
   RUNNING_SPORT_TYPES,
+  AnalyseQueryData,
 } from '../types/coros.js';
 
 export class CorosClient {
@@ -210,6 +211,28 @@ export class CorosClient {
     }
 
     return json;
+  }
+
+  // ─── Training Analysis ─────────────────────────────────────────────────────
+
+  /**
+   * Fetches daily HRV, resting HR, and training load data from /analyse/query.
+   * This is the same endpoint that powers the "Overnight HRV" graph on the
+   * COROS app. The API returns the last ~4 weeks of data with no parameters.
+   * The `avgSleepHrv` field in each dayList entry is the value plotted on the graph.
+   */
+  async getTrainingAnalysis(): Promise<AnalyseQueryData | null> {
+    await this.ensureAuth();
+
+    console.log('[CorosClient] Fetching training analysis (last 4 weeks)...');
+    const res = await this.authGet<AnalyseQueryData>('/analyse/query');
+
+    if (res.result !== '0000') {
+      console.warn(`[CorosClient] /analyse/query returned ${res.result}: ${res.message}`);
+      return null;
+    }
+
+    return res.data ?? null;
   }
 }
 
