@@ -284,3 +284,275 @@ export interface AnalyseQueryData {
   t7dayList?: AnalyseDayRecord[];
   weekList?: Array<{ firstDayOfWeek: number; trainingLoad: number; recomendTlMax?: number; recomendTlMin?: number }>;
 }
+
+// ─── Training Schedule (/training/schedule/query) ────────────────────────────
+
+/**
+ * exerciseType values in bar chart / exercise lists:
+ *   1 = warmup  2 = main/interval  3 = cooldown  4 = rest/recovery  0 = group
+ *
+ * targetType values:
+ *   0 = open (no target)  2 = duration (seconds)  5 = distance (mm)
+ */
+export interface ScheduleExerciseBarChartItem {
+  exerciseId: string;
+  exerciseType: number;
+  height: number;
+  name: string;
+  targetType: number;
+  targetValue: number;         // distance in mm (targetType 5) or seconds (targetType 2)
+  value: number;               // actual / rendered value
+  width: number;               // bar width percentage
+  widthFill: number;           // fill percentage (0–100, 100 when completed)
+}
+
+/** A single step inside a scheduled program's exercise list */
+export interface ScheduleExercise {
+  access: number;
+  createTimestamp: number;
+  defaultOrder: number;
+  exerciseType: number;
+  groupId: string;             // '0' = not in a group; otherwise ID of the parent group exercise
+  id: string;
+  intensityPercent?: number;   // e.g. 99000 = 99%
+  intensityPercentExtend?: number;
+  intensityType: number;       // 0=none, 3=pace zone
+  intensityValue: number;      // pace in s/km when intensityType=3
+  intensityValueExtend?: number;
+  isDefaultAdd: number;
+  isGroup: boolean;
+  isIntensityPercent: boolean;
+  name: string;
+  originId: string;
+  restType: number;
+  restValue: number;
+  setCompleteRateArr?: string; // JSON-like string, e.g. "{3:[1.0]}"
+  sets: number;
+  sortNo: number;
+  sportType: number;
+  status: number;
+  subType: number;
+  targetType: number;
+  targetValue: number;         // distance in mm or seconds depending on targetType
+  userId: number;
+  videoInfos: unknown[];
+}
+
+/** A workout program attached to the schedule (one day's structured session) */
+export interface ScheduleProgram {
+  access: number;
+  authorId: string;
+  createTimestamp: number;
+  deleted: number;
+  distance: number;            // total distance in mm
+  distanceDisplayUnit: number; // 3 = miles
+  duration: number;            // estimated duration in seconds
+  elevGain: number;
+  essence: number;
+  estimatedDistance: number;   // mm
+  estimatedTime: number;       // seconds
+  estimatedType: number;
+  estimatedValue: number;
+  exerciseBarChart: ScheduleExerciseBarChartItem[];
+  exerciseNum: number;
+  exercises: ScheduleExercise[];
+  headPic: string;             // coach/plan thumbnail URL
+  id: string;
+  idInPlan: string;
+  isTargetTypeConsistent: number;
+  name: string;
+  nickname: string;            // third-party plan provider name (e.g. "Runna")
+  originEssence: number;
+  originId: number;
+  overview: string;            // human-readable workout description
+  pbVersion: number;
+  pitch: number;
+  planId: string;
+  planIdIndex: number;
+  sex: number;
+  simple: boolean;
+  sportType: number;
+  star: number;
+  status: number;
+  subType: number;
+  targetType: number;
+  targetValue: number;
+  thirdPartyId: number;
+  totalSets: number;
+  trainingLoad: number;
+  type: number;
+  unit: number;
+  userId: string;
+  version: number;
+}
+
+/** Sport data for an activity matched (or unmatched) to the plan */
+export interface ScheduleSportData {
+  avgPace: number;             // seconds per km
+  avgSpeed: number;
+  distance: number;            // mm
+  duration: number;            // seconds
+  endTime: number;             // unix timestamp
+  fitnessSwitch: number;
+  happenDay: number;           // YYYYMMDD
+  isShowMs: number;
+  labelId: string;
+  mode: number;
+  name: string;
+  pitch: number;
+  sets: number;
+  speedType: number;
+  sportType: number;
+  startTime: number;           // unix timestamp
+  subMode: number;
+  trainingLoad: number;
+  unitType: number;
+}
+
+/** A scheduled workout entity (one planned day entry) */
+export interface ScheduleEntity {
+  completeRate: string;        // "-1.00" = not yet due, "0" = incomplete, "1.00" = complete
+  dayNo: number;               // day number within the plan
+  executeStatus: number;       // 0 = not started, 2 = completed
+  exerciseBarChart: ScheduleExerciseBarChartItem[];
+  happenDay: number;           // YYYYMMDD — the date this workout is scheduled
+  id: string;
+  idInPlan: string;
+  labelId?: string;            // linked activity labelId when completed
+  operateUserId: string;
+  originId: string;
+  planId: string;
+  planIdIndex: number;
+  planProgramId: string;
+  score: string;               // "0"–"100.00" or "-1.00" when not applicable
+  sortNo: number;
+  sortNoInSchedule?: number;
+  sportData?: ScheduleSportData; // populated when the workout has been completed
+  standardRate?: string;
+  thirdParty: boolean;
+  thirdPartyId: number;
+  userId: number;
+}
+
+/** Per-sport-type summary within a week stage */
+export interface WeekStageSportSummary {
+  actualDistance: string;      // mm as decimal string
+  actualDuration: number;      // seconds
+  actualElevGain: number;
+  actualPitch: number;
+  actualTrainingLoad: number;
+  planDistance: string;        // mm as decimal string
+  planDuration: number;
+  planElevGain: number;
+  planPitch: number;
+  planSets: number;
+  planTrainingLoad: number;
+}
+
+export interface WeekStageSumByType {
+  sportType: number;
+  trainSum: WeekStageSportSummary;
+}
+
+/** Aggregate training summary for a week stage (includes ATI/CTI and load ratios) */
+export interface WeekStageTrainSum extends WeekStageSportSummary {
+  actualAti: number;
+  actualCti: number;
+  actualTiredRate: number;
+  actualTiredRateNew: number;
+  actualTrainingLoadRatio: number;
+  planAti: number;
+  planCti: number;
+  planTiredRate: number;
+  planTiredRateNew: number;
+  planTrainingLoadRatio: number;
+}
+
+export interface WeekStage {
+  firstDayInWeek: number;      // YYYYMMDD — Monday of the week
+  planId: string;
+  stage: number;
+  sumByType: WeekStageSumByType[];
+  trainSum: WeekStageTrainSum;
+}
+
+/** Lightweight sub-plan object nested inside the schedule response */
+export interface ScheduleSubPlan {
+  access: number;
+  authorId: string;
+  category: number;
+  competitions: unknown[];
+  createTime: string;
+  endDay: number;              // YYYYMMDD
+  eventTags: unknown[];
+  executeStatus: number;
+  id: string;
+  inSchedule: number;
+  likeTpIds: unknown[];
+  maxIdInPlan: string;
+  maxPlanProgramId: string;
+  maxWeeks: number;
+  minWeeks: number;
+  name: string;
+  overview: string;
+  pbVersion: number;
+  planIcon: number;
+  planIdIndex: number;
+  sourceUrl: string;
+  sportDatasInPlan: unknown[];
+  sportDatasNotInPlan: unknown[];
+  starTimestamp: number;
+  startDay: number;            // YYYYMMDD
+  status: number;
+  thirdPartyId: number;
+  totalDay: number;
+  unit: number;
+  updateTime: string;
+  updateTimestamp: number;
+  userId: string;
+  userInfos: unknown[];
+  version: number;
+  weekStages: unknown[];
+}
+
+/** Top-level `data` object returned by GET /training/schedule/query */
+export interface CorosScheduleData {
+  access: number;
+  authorId: string;
+  category: number;
+  createTime: string;
+  endDay: number;              // YYYYMMDD
+  entities: ScheduleEntity[];  // one entry per planned workout day within the queried date range
+  executeStatus: number;
+  id: string;
+  inSchedule: number;
+  likeTpIds: string[];
+  maxIdInPlan: string;
+  maxPlanProgramId: string;
+  name: string;
+  pauseInApp: number;
+  pbVersion: number;
+  planIdIndex: number;
+  programs: ScheduleProgram[]; // full workout definitions for each idInPlan
+  score: number;
+  sourceUrl: string;
+  sportDatasInPlan: ScheduleSportData[];
+  sportDatasNotInPlan: ScheduleSportData[];
+  starTimestamp: number;
+  startDay: number;            // YYYYMMDD
+  status: number;
+  subPlans: ScheduleSubPlan[];
+  thirdPartyId: number;
+  totalDay: number;
+  type: number;
+  unit: number;
+  updateTime: string;
+  updateTimestamp: number;
+  userId: string;
+  userInfos: unknown[];
+  version: number;
+  weekStages: WeekStage[];
+}
+
+/** Full response envelope for GET /training/schedule/query */
+export type CorosScheduleQueryResponse = CorosApiResponse<CorosScheduleData>;
