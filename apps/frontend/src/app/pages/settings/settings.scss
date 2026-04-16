@@ -23,3 +23,152 @@
     }
   }
 }
+
+// ─── Goal type selector ───────────────────────────────────────────────────────
+
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.optional-label {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.goal-type-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.goal-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  border: 2px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--mat-sys-on-surface);
+  transition: border-color 0.15s, background 0.15s;
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .goal-type-name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .goal-type-desc {
+    font-size: 11px;
+    color: var(--mat-sys-on-surface-variant);
+    text-align: center;
+  }
+
+  &.selected {
+    border-color: var(--mat-sys-primary);
+    background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+
+    mat-icon {
+      color: var(--mat-sys-primary);
+    }
+
+    .goal-type-name {
+      color: var(--mat-sys-primary);
+    }
+  }
+
+  &:hover:not(.selected) {
+    border-color: var(--mat-sys-outline);
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent);
+  }
+}
+
+// ─── Target time row ──────────────────────────────────────────────────────────
+
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  .time-field {
+    flex: 1;
+  }
+
+  .time-sep {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+    padding-bottom: 20px;
+  }
+}
+
+// ─── Days per week selector ───────────────────────────────────────────────────
+
+.days-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.day-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--mat-sys-outline-variant);
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--mat-sys-on-surface);
+  transition: border-color 0.15s, background 0.15s;
+
+  &.selected {
+    border-color: var(--mat-sys-primary);
+    background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+    color: var(--mat-sys-primary);
+  }
+
+  &:hover:not(.selected) {
+    border-color: var(--mat-sys-outline);
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent);
+  }
+}
+
+// ─── Experience toggle ────────────────────────────────────────────────────────
+
+.experience-toggle {
+  width: 100%;
+
+  mat-button-toggle {
+    flex: 1;
+  }
+}
+
+// ─── Section divider ──────────────────────────────────────────────────────────
+
+.section-divider {
+  margin: 20px 0;
+}
+

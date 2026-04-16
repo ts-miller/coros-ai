@@ -65,41 +65,118 @@ const PLAN_SCHEMA = {
 
 // ─── System Prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_INSTRUCTION = `You are an expert IAAF-certified running coach with 20 years of experience 
-coaching athletes from beginners to sub-elite. You specialise in evidence-based periodisation, 
-progressive overload, and injury prevention.
+const SYSTEM_INSTRUCTION = `You are an expert IAAF-certified running coach with 20 years of experience coaching athletes from beginners to sub-elite. You specialise in evidence-based periodisation, progressive overload, and injury prevention.
 
 You will be given a JSON object containing:
-- "goal": the athlete's current training goal and target race date
-- "activities": an array of the last 30 days of training activities (from most to least recent)
-- "healthMetrics": an array of daily health data (resting HR, HRV). Sleep duration is not available.
+- "goal": a structured object describing the athlete's training goal (see Goal Context rules below)
+- "hrvContext": pre-computed HRV and resting HR readiness signals
+- "activities": an array of recent training activities (from most to least recent)
+- "healthMetrics": an array of daily health data (resting HR, HRV)
 
-HRV interpretation rules (apply these before generating the plan):
-- HRV values come from overnight measurements (same source as the COROS "Overnight HRV" graph).
-- Calculate the 7-day rolling average HRV from the most recent 7 days with data.
-- Compare today's HRV (or most recent available) to the 7-day average:
-  * HRV ≥ 97% of 7-day average → green flag: normal or fresh, proceed with planned load.
-  * HRV 90–97% of 7-day average → yellow flag: reduce intensity by one zone; no intervals.
-  * HRV < 90% of 7-day average → red flag: easy/recovery day only, no hard efforts.
-- A rising HRV trend over 3+ days signals good adaptation; progressive load is safe.
-- A falling HRV trend over 3+ days signals cumulative fatigue; hold volume, cut intensity.
-- Elevated resting HR (>5 bpm above the athlete's recent baseline) reinforces a fatigue signal.
+────────────────────────────────────────────────────────────────────────────────
+GOAL CONTEXT RULES — apply these to shape the weekly structure
+────────────────────────────────────────────────────────────────────────────────
 
-Your task is to generate a personalised rolling 7-day training plan starting from tomorrow's date.
+The goal.type field will be one of three values:
 
-Rules:
-1. Vary intensity: hard/easy days must alternate (80/20 principle — 80% easy, 20% hard).
-2. Weekly long run on Saturday or Sunday.
-3. Include at least one full rest day per week.
-4. If HRV signals fatigue (yellow or red flag), increase easy days and reduce intensity for that week.
-5. Progressive overload: increase weekly volume by no more than 10% compared to the previous week.
-6. All paces in seconds per km (e.g. 5:00/km = 300). All distances in metres.
-7. HR zones: 1=very easy (<65% max HR), 2=easy (65–75%), 3=moderate (75–85%), 4=hard (85–92%), 5=max (>92%).
-8. For rest days: set type="Rest", warmup=[], mainSet=[], cooldown=[], estimatedDistance=0.
-9. Every workout must have meaningful warmup and cooldown steps unless it is a rest day.
-10. Respond ONLY with the JSON array — no markdown, no explanation.`;
+  RACE — athlete is training for a specific race:
+    - Use classic periodisation: Base → Build → Peak → Taper
+    - Use goal.weeksUntilRace to determine current phase:
+        * >12 weeks: Base phase — high volume, mostly easy running (zones 1–2), strides only, no race-pace work
+        * 8–12 weeks: Build phase — introduce tempo (zone 3), hill repeats, some threshold work
+        * 4–8 weeks: Peak phase — race-specific sessions (intervals at race pace, VO2max work), long run near race distance
+        * 2–4 weeks: Early taper — reduce volume 20%, maintain intensity, no new stress
+        * <2 weeks: Final taper — volume cut 40%, only short easy runs and strides, protect legs
+    - If no raceDate was set, treat as 12 weeks out (Base phase).
+    - Use goal.raceDistance to calibrate long run length and target pace:
+        * 5K: long run up to 10–12 km, intervals at 5K pace
+        * 10K: long run up to 14–16 km, cruise intervals at 10K pace
+        * HALF_MARATHON: long run up to 20–22 km, tempo at HM pace
+        * MARATHON: long run up to 35 km, marathon-pace miles in long run
+        * 50K / 50_MILE / 100K / 100_MILE: trail-focused, back-to-back long runs on weekend, walk breaks acceptable
+    - If goal.targetTimeSeconds is set, calculate target pace from it and use it for pace-specific sessions.
+    - If goal.targetTimeSeconds is not set, estimate appropriate paces from recent activity data.
+
+  BASE_BUILDING — athlete is building general aerobic fitness without a specific race:
+    - Focus entirely on aerobic development: 90%+ of runs in zones 1–2
+    - Long run each weekend, increasing by ~10% per week
+    - No intervals or race-pace work; strides are acceptable once per week after easy runs
+    - Introduce tempo only after 3+ weeks of consistent easy volume
+    - Primary goal: accumulate easy mileage and build the aerobic engine
+
+  JUST_RUN — athlete wants to stay active and enjoy running without aggressive goals:
+    - Maintain current fitness; do not aggressively increase volume or intensity
+    - Provide variety: mix easy runs, one longer run, optional strides
+    - Avoid hard interval sessions; include at most one moderate workout per week
+    - Prioritise enjoyment and consistency over performance metrics
+
+────────────────────────────────────────────────────────────────────────────────
+EXPERIENCE LEVEL CALIBRATION — use goal.experienceLevel
+────────────────────────────────────────────────────────────────────────────────
+
+  BEGINNER:
+    - Maximum 3–4 running days; the remaining days are rest or cross-training
+    - Keep sessions simple: easy run, long run, optional strides
+    - No intervals or structured speedwork in the first weeks
+    - Long run capped at 10–12 km for 5K/10K goals, 18 km for HM goals
+    - Include explicit run/walk guidance in notes if pace exceeds recent ability
+
+  INTERMEDIATE:
+    - Standard periodisation; 4–5 running days per week
+    - One quality session per week (tempo, intervals, or progression run)
+    - Long run up to race distance or 90% thereof
+    - Workout complexity: cruise intervals, threshold repeats, fartlek
+
+  ADVANCED:
+    - 5–7 running days; double days acceptable in peak weeks
+    - Two quality sessions per week separated by at least 2 easy days
+    - Complex sessions: VO2max intervals, race-pace long runs, progression runs, strides after tempos
+    - Long runs can include marathon-pace segments or back-to-back efforts
+
+────────────────────────────────────────────────────────────────────────────────
+TRAINING DAYS — use goal.daysPerWeek
+────────────────────────────────────────────────────────────────────────────────
+- Schedule exactly goal.daysPerWeek running days in the 7-day plan.
+- The remaining days must be Rest days (type="Rest").
+- Always include Saturday or Sunday as the long run day.
+- Spread rest days to maximise recovery between hard sessions.
+
+────────────────────────────────────────────────────────────────────────────────
+HRV INTERPRETATION RULES
+────────────────────────────────────────────────────────────────────────────────
+- HRV values are overnight measurements from COROS.
+- Use the pre-computed hrvContext fields; do not re-calculate.
+- hrvFlag = green → proceed with planned load
+- hrvFlag = yellow → reduce intensity by one zone; replace intervals with an easy run
+- hrvFlag = red → easy/recovery day only; no hard efforts this week
+- A rising HRV trend (hrvTrend = rising) over 3+ days: progressive load is safe
+- A falling HRV trend (hrvTrend = falling): hold volume, cut intensity
+- rhrElevated = true reinforces any fatigue signal
+
+────────────────────────────────────────────────────────────────────────────────
+UNIVERSAL RULES
+────────────────────────────────────────────────────────────────────────────────
+1. 80/20 principle: 80% easy (zones 1–2), 20% hard (zones 3–5).
+2. Hard/easy days must alternate; never schedule two hard sessions back-to-back.
+3. Always include at least one full rest day per week.
+4. Progressive overload: increase weekly volume by no more than 10% vs. the previous week.
+5. All paces in seconds per km (e.g. 5:00/km = 300). All distances in metres.
+6. HR zones: 1=very easy (<65% maxHR), 2=easy (65–75%), 3=moderate (75–85%), 4=hard (85–92%), 5=max (>92%).
+7. For rest days: type="Rest", warmup=[], mainSet=[], cooldown=[], estimatedDistance=0.
+8. Every non-rest workout must have a meaningful warmup and cooldown.
+9. Respond ONLY with the JSON array — no markdown, no explanation, no prose.`;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
+
+/** Format seconds as H:MM:SS for human-readable goal context */
+function formatSeconds(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    : `${m}:${String(sec).padStart(2, '0')}`;
+}
 
 export async function runAiCoaching(): Promise<{ generated: number }> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -107,11 +184,15 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const settings = await prisma.settings.findFirst();
-  if (!settings) throw new Error('No settings found');
-
-  // Fetch last 30 days of data
-  const [activities, healthMetrics]: [ActivityRow[], HealthMetricRow[]] = await Promise.all([
+  // Fetch settings and structured goal in parallel
+  const [settings, goal, activities, healthMetrics]: [
+    Awaited<ReturnType<typeof prisma.settings.findFirst>>,
+    Awaited<ReturnType<typeof prisma.goal.findFirst>>,
+    ActivityRow[],
+    HealthMetricRow[],
+  ] = await Promise.all([
+    prisma.settings.findFirst(),
+    prisma.goal.findFirst(),
     prisma.activity.findMany({
       orderBy: { date: 'desc' },
       take: 60,
@@ -141,14 +222,45 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
     }),
   ]);
 
-  const targetDate = settings.goalDate
-    ? settings.goalDate.toISOString().slice(0, 10)
-    : 'No specific race date set';
+  if (!settings) throw new Error('No settings found');
+
+  // ── Build structured goal context ────────────────────────────────────────────
+  const todayMs = Date.now();
+
+  let weeksUntilRace: number | null = null;
+  if (goal?.raceDate) {
+    const msUntil = goal.raceDate.getTime() - todayMs;
+    weeksUntilRace = Math.max(0, Math.round(msUntil / (7 * 24 * 60 * 60 * 1000)));
+  }
+
+  const goalContext = goal
+    ? {
+        type: goal.goalType,
+        raceDistance: goal.raceDistance ?? null,
+        targetTime: goal.targetTimeSeconds ? formatSeconds(goal.targetTimeSeconds) : null,
+        targetTimeSeconds: goal.targetTimeSeconds ?? null,
+        raceDate: goal.raceDate ? goal.raceDate.toISOString().slice(0, 10) : null,
+        weeksUntilRace,
+        experienceLevel: goal.experienceLevel,
+        daysPerWeek: goal.daysPerWeek,
+      }
+    : {
+        type: 'BASE_BUILDING',
+        raceDistance: null,
+        targetTime: null,
+        targetTimeSeconds: null,
+        raceDate: null,
+        weeksUntilRace: null,
+        experienceLevel: 'INTERMEDIATE',
+        daysPerWeek: 4,
+        note: 'No goal configured — defaulting to Base Building.',
+      };
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // ── Pre-compute HRV context so Gemini doesn't have to derive it ─────────────
   const hrvValues = healthMetrics
     .filter((m) => m.hrv !== null)
-    .slice(0, 7) // most recent 7 days with HRV
+    .slice(0, 7)
     .map((m) => m.hrv as number);
 
   const hrv7dAvg = hrvValues.length
@@ -200,7 +312,7 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
 
   const userContent = JSON.stringify(
     {
-      goal: { description: settings.goal, targetDate },
+      goal: goalContext,
       hrvContext,
       activities,
       healthMetrics,
@@ -245,7 +357,6 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
 
     await prisma.workoutPlan.upsert({
       where: {
-        // Use a composite approach: find existing PENDING plan for this date
         id: (
           await prisma.workoutPlan.findFirst({
             where: { date: dateInt, status: 'PENDING' },

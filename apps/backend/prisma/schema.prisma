@@ -16,10 +16,21 @@ model Settings {
   corosPwd     String    // AES-256 encrypted
   accessToken  String?
   userId       String?
-  goal         String    @default("Base Building")
-  goalDate     DateTime?
   unitSystem   String    @default("metric")  // "metric" | "imperial"
   updatedAt    DateTime  @updatedAt
+}
+
+/// Structured training goal — one row, upserted on save.
+model Goal {
+  id                 Int       @id @default(autoincrement())
+  goalType           String    @default("BASE_BUILDING") // RACE | BASE_BUILDING | JUST_RUN
+  raceDistance       String?   // 5K | 10K | HALF_MARATHON | MARATHON | 50K | 50_MILE | 100K | 100_MILE
+  targetTimeSeconds  Int?      // optional goal finish time in seconds
+  raceDate           DateTime? // target race day
+  experienceLevel    String    @default("INTERMEDIATE") // BEGINNER | INTERMEDIATE | ADVANCED
+  daysPerWeek        Int       @default(4) // 3–7 training days per week
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 model Activity {

@@ -80,10 +80,46 @@ export interface RacePredictions {
 }
 
 export interface AppSettings {
-  goal: string;
-  goalDate: string | null;
   corosEmail: string;
   unitSystem: 'metric' | 'imperial';
+}
+
+export type GoalType = 'RACE' | 'BASE_BUILDING' | 'JUST_RUN';
+
+export type RaceDistance =
+  | '5K'
+  | '10K'
+  | 'HALF_MARATHON'
+  | 'MARATHON'
+  | '50K'
+  | '50_MILE'
+  | '100K'
+  | '100_MILE';
+
+export type ExperienceLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
+export interface Goal {
+  id: number;
+  goalType: GoalType;
+  raceDistance: RaceDistance | null;
+  /** target finish time in seconds */
+  targetTimeSeconds: number | null;
+  /** ISO date string, e.g. '2026-10-04' */
+  raceDate: string | null;
+  experienceLevel: ExperienceLevel;
+  /** training days per week, 3–7 */
+  daysPerWeek: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalPayload {
+  goalType: GoalType;
+  raceDistance: RaceDistance | null;
+  targetTimeSeconds: number | null;
+  raceDate: string | null;
+  experienceLevel: ExperienceLevel;
+  daysPerWeek: number;
 }
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
@@ -132,8 +168,16 @@ export class CorosApiService {
     return this.unwrap(this.http.get<ApiResponse<AppSettings | null>>(`${this.baseUrl}/settings`));
   }
 
-  saveSettings(data: Partial<AppSettings & { corosPassword: string }>): Observable<unknown> {
+  saveSettings(data: { corosEmail?: string; corosPassword?: string; unitSystem?: string }): Observable<unknown> {
     return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/settings`, data));
+  }
+
+  getGoal(): Observable<Goal | null> {
+    return this.unwrap(this.http.get<ApiResponse<Goal | null>>(`${this.baseUrl}/goal`));
+  }
+
+  saveGoal(data: GoalPayload): Observable<Goal> {
+    return this.unwrap(this.http.post<ApiResponse<Goal>>(`${this.baseUrl}/goal`, data));
   }
 
   triggerSync(): Observable<{ synced: number; errors: number }> {

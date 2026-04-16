@@ -5,6 +5,11 @@ import { runActivitySync } from '../sync/ActivitySyncService.js';
 import { runHealthMetricSync } from '../sync/HealthMetricSyncService.js';
 import { runAiCoaching, getAiPredictions } from '../ai/CoachingService.js';
 import { runWorkoutPush } from '../sync/WorkoutPushService.js';
+import type { GoalType, RaceDistance, ExperienceLevel } from '../types/coros.js';
+
+const VALID_GOAL_TYPES: GoalType[] = ['RACE', 'BASE_BUILDING', 'JUST_RUN'];
+const VALID_RACE_DISTANCES: RaceDistance[] = ['5K', '10K', 'HALF_MARATHON', 'MARATHON', '50K', '50_MILE', '100K', '100_MILE'];
+const VALID_EXPERIENCE_LEVELS: ExperienceLevel[] = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 
 export const router = Router();
 
@@ -131,7 +136,7 @@ router.get(
   '/settings',
   asyncHandler(async (_req, res) => {
     const settings = await prisma.settings.findFirst({
-      select: { goal: true, goalDate: true, corosEmail: true, unitSystem: true },
+      select: { corosEmail: true, unitSystem: true },
     });
     ok(res, settings ?? null);
   }),
@@ -140,9 +145,7 @@ router.get(
 router.post(
   '/settings',
   asyncHandler(async (req, res) => {
-    const { goal, goalDate, corosEmail, corosPassword, unitSystem } = req.body as {
-      goal?: string;
-      goalDate?: string;
+    const { corosEmail, corosPassword, unitSystem } = req.body as {
       corosEmail?: string;
       corosPassword?: string;
       unitSystem?: string;
@@ -151,15 +154,13 @@ router.post(
     const existing = await prisma.settings.findFirst();
 
     const data: Record<string, unknown> = {};
-    if (goal !== undefined) data['goal'] = goal;
-    if (goalDate !== undefined) data['goalDate'] = goalDate ? new Date(goalDate) : null;
     if (corosEmail !== undefined) data['corosEmail'] = corosEmail;
     if (corosPassword !== undefined) data['corosPwd'] = encrypt(corosPassword);
     if (unitSystem !== undefined) data['unitSystem'] = unitSystem;
 
     if (existing) {
       const updated = await prisma.settings.update({ where: { id: existing.id }, data });
-      ok(res, { id: updated.id, goal: updated.goal, goalDate: updated.goalDate });
+      ok(res, { id: updated.id });
     } else {
       if (!corosEmail || !corosPassword) {
         return fail(res, 400, 'corosEmail and corosPassword are required for initial setup');
@@ -168,11 +169,80 @@ router.post(
         data: {
           corosEmail: corosEmail!,
           corosPwd: encrypt(corosPassword!),
-          goal: goal ?? 'Base Building',
-          goalDate: goalDate ? new Date(goalDate) : null,
         },
       });
-      ok(res, { id: created.id, goal: created.goal, goalDate: created.goalDate });
+      ok(res, { id: created.id });
+    }
+  }),
+);
+
+// ─── Goal ─────────────────────────────────────────────────────────────────────
+
+router.get(
+  '/goal',
+  asyncHandler(async (_req, res) => {
+    const goal = await prisma.goal.findFirst();
+    ok(res, goal ?? null);
+  }),
+);
+
+router.post(
+  '/goal',
+  asyncHandler(async (req, res) => {
+    const {
+      goalType,
+      raceDistance,
+      targetTimeSeconds,
+      raceDate,
+      experienceLevel,
+      daysPerWeek,
+    } = req.body as {
+      goalType?: string;
+      raceDistance?: string | null;
+      targetTimeSeconds?: number | null;
+      raceDate?: string | null;
+      experienceLevel?: string;
+      daysPerWeek?: number;
+    };
+
+    if (!goalType || !VALID_GOAL_TYPES.includes(goalType as GoalType)) {
+      return fail(res, 400, `goalType must be one of: ${VALID_GOAL_TYPES.join(', ')}`);
+    }
+    if (goalType === 'RACE' && (!raceDistance || !VALID_RACE_DISTANCES.includes(raceDistance as RaceDistance))) {
+      return fail(res, 400, `raceDistance is required for RACE goals and must be one of: ${VALID_RACE_DISTANCES.join(', ')}`);
+    }
+    if (raceDistance !== undefined && raceDistance !== null && !VALID_RACE_DISTANCES.includes(raceDistance as RaceDistance)) {
+      return fail(res, 400, `raceDistance must be one of: ${VALID_RACE_DISTANCES.join(', ')}`);
+    }
+    if (!experienceLevel || !VALID_EXPERIENCE_LEVELS.includes(experienceLevel as ExperienceLevel)) {
+      return fail(res, 400, `experienceLevel must be one of: ${VALID_EXPERIENCE_LEVELS.join(', ')}`);
+    }
+    const days = Number(daysPerWeek);
+    if (!Number.isInteger(days) || days < 3 || days > 7) {
+      return fail(res, 400, 'daysPerWeek must be an integer between 3 and 7');
+    }
+    if (targetTimeSeconds !== undefined && targetTimeSeconds !== null) {
+      if (!Number.isInteger(targetTimeSeconds) || targetTimeSeconds <= 0) {
+        return fail(res, 400, 'targetTimeSeconds must be a positive integer');
+      }
+    }
+
+    const data = {
+      goalType: goalType as GoalType,
+      raceDistance: (goalType === 'RACE' ? (raceDistance as RaceDistance) : null),
+      targetTimeSeconds: targetTimeSeconds ?? null,
+      raceDate: raceDate ? new Date(raceDate) : null,
+      experienceLevel: experienceLevel as ExperienceLevel,
+      daysPerWeek: days,
+    };
+
+    const existing = await prisma.goal.findFirst();
+    if (existing) {
+      const updated = await prisma.goal.update({ where: { id: existing.id }, data });
+      ok(res, updated);
+    } else {
+      const created = await prisma.goal.create({ data });
+      ok(res, created);
     }
   }),
 );

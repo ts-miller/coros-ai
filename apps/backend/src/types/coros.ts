@@ -556,3 +556,36 @@ export interface CorosScheduleData {
 
 /** Full response envelope for GET /training/schedule/query */
 export type CorosScheduleQueryResponse = CorosApiResponse<CorosScheduleData>;
+
+// ─── Goal Types ───────────────────────────────────────────────────────────────
+
+export type GoalType = 'RACE' | 'BASE_BUILDING' | 'JUST_RUN';
+
+export type RaceDistance =
+  | '5K'
+  | '10K'
+  | 'HALF_MARATHON'
+  | 'MARATHON'
+  | '50K'
+  | '50_MILE'
+  | '100K'
+  | '100_MILE';
+
+export type ExperienceLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
+/** Matches the Prisma Goal model — returned by GET /goal and POST /goal */
+export interface GoalData {
+  id: number;
+  goalType: GoalType;
+  /** null for non-race goals */
+  raceDistance: RaceDistance | null;
+  /** optional target finish time in seconds */
+  targetTimeSeconds: number | null;
+  /** ISO date string of the target race day, or null */
+  raceDate: string | null;
+  experienceLevel: ExperienceLevel;
+  /** training days per week, 3–7 */
+  daysPerWeek: number;
+  createdAt: string;
+  updatedAt: string;
+}
