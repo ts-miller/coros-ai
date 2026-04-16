@@ -78,6 +78,7 @@ The external Coros API has specific quirks that must be handled defensively:
 For every prompt or task assigned to you, execute the following loop:
 
 1. **READ:** Skim MEMORY.md before writing any code. This file contains recent architectural shifts, active context, and unfinished tasks.  
-2. **PLAN:** Briefly outline your proposed changes to the user before writing massive code blocks.  
-3. **EXECUTE:** Implement the changes following all rules in Sections 2, 3, and 4\. If creating a new API shape, generate the typed interface in apps/backend/src/types/ first.  
-4. **UPDATE:** If your task involved a significant change to data models, API logic, or environment variables, append a brief summary to MEMORY.md.
+2. **PLAN:** Briefly outline your proposed changes to the user before writing massive code blocks.
+3. **DOCUMENT:** Before implementing the plan, write it to a file in the `plans/` directory with a timestamp and descriptive name (e.g., `plans/20240522-add-activity-summary.md`). This creates an audit trail of your decision-making process.
+4. **EXECUTE:** Implement the changes following all rules in Sections 2, 3, and 4\. If creating a new API shape, generate the typed interface in apps/backend/src/types/ first.  
+5. **UPDATE:** If your task involved a significant change to data models, API logic, or environment variables, append a brief summary to MEMORY.md.
