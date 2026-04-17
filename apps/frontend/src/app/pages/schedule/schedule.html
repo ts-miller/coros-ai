@@ -36,7 +36,7 @@
           <mat-card-content>
             <p class="workout-desc">{{ plan.description }}</p>
             @if (plan.stepsJson.estimatedDistance) {
-              <p class="meta">~{{ (plan.stepsJson.estimatedDistance / 1000).toFixed(1) }} km</p>
+              <p class="meta">~{{ formatDistance(plan.stepsJson.estimatedDistance) }}</p>
             }
             @if (plan.stepsJson.targetPaceMin) {
               <p class="meta">Target pace: {{ formatPace(plan.stepsJson.targetPaceMin) }}</p>
@@ -46,7 +46,7 @@
             }
 
             <!-- Steps accordion -->
-            @if (plan.stepsJson.mainSet.length) {
+            @if (plan.stepsJson.type !== 'Rest' && plan.stepsJson.mainSet.length) {
               <mat-expansion-panel>
                 <mat-expansion-panel-header>
                   <mat-panel-title>View steps</mat-panel-title>
@@ -56,21 +56,21 @@
                     <div class="step-group">
                       <strong>Warm-up</strong>
                       @for (s of plan.stepsJson.warmup; track $index) {
-                        <div class="step">{{ s.stepType }} {{ s.distance ? (s.distance/1000).toFixed(2)+'km' : s.duration ? s.duration+'s' : '' }} {{ s.notes }}</div>
+                        <div class="step">{{ s.stepType }} {{ s.distance ? formatDistance(s.distance) : s.duration ? s.duration+'s' : '' }} {{ s.notes }}</div>
                       }
                     </div>
                   }
                   <div class="step-group">
                     <strong>Main Set</strong>
                     @for (s of plan.stepsJson.mainSet; track $index) {
-                      <div class="step">{{ s.stepType }} {{ s.distance ? (s.distance/1000).toFixed(2)+'km' : s.duration ? s.duration+'s' : '' }} {{ s.reps ? '×'+s.reps : '' }} {{ s.notes }}</div>
+                      <div class="step">{{ s.stepType }} {{ s.distance ? formatDistance(s.distance) : s.duration ? s.duration+'s' : '' }} {{ s.reps ? '×'+s.reps : '' }} {{ s.notes }}</div>
                     }
                   </div>
                   @if (plan.stepsJson.cooldown.length) {
                     <div class="step-group">
                       <strong>Cool-down</strong>
                       @for (s of plan.stepsJson.cooldown; track $index) {
-                        <div class="step">{{ s.stepType }} {{ s.distance ? (s.distance/1000).toFixed(2)+'km' : s.duration ? s.duration+'s' : '' }} {{ s.notes }}</div>
+                        <div class="step">{{ s.stepType }} {{ s.distance ? formatDistance(s.distance) : s.duration ? s.duration+'s' : '' }} {{ s.notes }}</div>
                       }
                     </div>
                   }

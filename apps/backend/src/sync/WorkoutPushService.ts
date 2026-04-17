@@ -19,6 +19,15 @@ export async function runWorkoutPush(): Promise<{ pushed: number; failed: number
     try {
       const workout = plan.stepsJson as unknown as AiWorkoutDay;
 
+      // Skip pushing Rest days to Coros, but mark them as SKIPPED so they don't stay PENDING
+      if (workout.type === 'Rest') {
+        await prisma.workoutPlan.update({
+          where: { id: plan.id },
+          data: { status: 'SKIPPED' },
+        });
+        continue;
+      }
+
       const corosWorkoutId = await corosWorkoutClient.createWorkout(workout);
 
       await prisma.workoutPlan.update({

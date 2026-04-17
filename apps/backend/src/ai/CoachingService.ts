@@ -129,12 +129,14 @@ The goal.type field will be:
 ────────────────────────────────────────────────────────────────────────────────
 PHASE 3: MICRO-CYCLE GENERATION (7-Day Plan)
 ────────────────────────────────────────────────────────────────────────────────
-1. Schedule exactly goal.trainingDaysPerWeek running days.
-2. Incorporate secondaryGoals: If a tune-up race exists this week, prioritize it. Schedule a rest/shakeout day before and make the race the "long run" for that week.
-3. 80/20 principle: 80% easy, 20% hard. Never two hard sessions back-to-back.
-4. Schedule stability: Avoid unnecessary shuffling of established routines unless physiological signals (HRV) or missed workouts require it.
-5. All paces in seconds per km. All distances in metres.
-6. Respond ONLY with the JSON object containing progressStatus, progressNotes, and plan.`;
+1. Generate a COMPLETE 7-day schedule starting from tomorrow.
+2. Schedule exactly goal.trainingDaysPerWeek running days.
+3. For all other days in the 7-day period, schedule a "Rest" day.
+4. Incorporate secondaryGoals: If a tune-up race exists this week, prioritize it. Schedule a rest/shakeout day before and make the race the "long run" for that week.
+5. 80/20 principle: 80% easy, 20% hard. Never two hard sessions back-to-back.
+6. Schedule stability: Avoid unnecessary shuffling of established routines unless physiological signals (HRV) or missed workouts require it.
+7. All paces in seconds per km. All distances in metres.
+8. Respond ONLY with the JSON object containing progressStatus, progressNotes, and plan.`;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -169,7 +171,7 @@ Apply these rules:
 Respond with JSON matching the required schema.`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
@@ -211,7 +213,8 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   const secondaryGoals = goals.filter(g => !g.isPrimary);
 
   // ── Build structured goal context ────────────────────────────────────────────
-  const todayMs = Date.now();
+  const today = new Date();
+  const todayMs = today.getTime();
   let weeksUntilRace: number | null = null;
   if (primaryGoal?.targetDate) {
     const msUntil = primaryGoal.targetDate.getTime() - todayMs;
@@ -243,6 +246,7 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   const hrvContext = { latestHrv, hrv7dAvg, hrvFlag, note: 'HRV measurements from COROS.' };
 
   const userContent = JSON.stringify({
+    today: today.toISOString().slice(0, 10),
     primaryGoal: goalContext,
     secondaryGoals: secondaryGoals.map(g => ({ title: g.title, type: g.type, date: g.targetDate?.toISOString().slice(0, 10) })),
     hrvContext,
@@ -251,7 +255,7 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   }, null, 2);
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     contents: userContent,
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
@@ -347,7 +351,7 @@ Only include distances the athlete could realistically race given their training
 Data: ${JSON.stringify(activities, null, 2)}`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3-flash-preview',
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
