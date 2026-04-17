@@ -7,7 +7,7 @@
     "apps/frontend"
   ],
   "scripts": {
-    "dev": "docker compose up",
+    "dev": "docker compose up --build",
     "dev:stop": "docker compose down",
     "dev:backend": "npm run dev --workspace=apps/backend",
     "dev:frontend": "npm run start --workspace=apps/frontend",
@@ -15,6 +15,10 @@
     "build:frontend": "npm run build --workspace=apps/frontend",
     "db:migrate": "npm run db:migrate --workspace=apps/backend",
     "db:generate": "npm run db:generate --workspace=apps/backend",
-    "db:studio": "npm run db:studio --workspace=apps/backend"
+    "db:studio": "npm run db:studio --workspace=apps/backend",
+    "dev:all": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }

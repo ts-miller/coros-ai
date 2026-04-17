@@ -70,18 +70,24 @@ The frontend runs at **http://localhost:4200**, the backend API at **http://loca
 
 ### 3. Local Development
 
-```bash
-# Backend
-cd apps/backend
-npm install
-npx prisma migrate dev   # creates tables
-npm run dev              # tsx watch on port 3000
+From the project root:
 
-# Frontend (separate terminal)
-cd apps/frontend
+```bash
+# 1. Install dependencies
 npm install
-npm start                # Angular dev server on port 4200 with /api proxy
+
+# 2. Run database migrations 
+# (This uses the root .env automatically)
+npx prisma migrate dev --schema apps/backend/prisma/schema.prisma
+
+# 3. Start Backend (Root)
+npm run dev:backend
+
+# 4. Start Frontend (Separate terminal)
+npm run dev:frontend
 ```
+
+> **Note:** If you prefer running commands directly inside `apps/backend`, create a symlink to the root `.env` first: `ln -s ../../.env apps/backend/.env`
 
 ### 4. First Use
 

@@ -18,3 +18,6 @@ Replaced the simple `goal: String` + `goalDate` fields on `Settings` with a dedi
 
 ## 2026-04-16 — Added Development Scripts
 Added `dev` (`docker compose up -d`) and `dev:stop` (`docker compose down`) to the root `package.json` for easier environment management.
+
+## 2026-04-16 — Forced Rebuild on Dev
+Updated root `package.json` `dev` script to use `docker compose up --build` to ensure images are always rebuilt and cache is bypassed for local development.
