@@ -14,12 +14,28 @@ async function main() {
   console.log('[DB] Connected to PostgreSQL');
 
   const app = express();
-  app.use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:4200' }));
+  
+  // CORS Configuration: Default to wildcard in production for homelab ease-of-use
+  let origin: string | string[] | boolean;
+  const corsEnv = process.env.CORS_ORIGIN;
+  
+  if (corsEnv === '*') {
+    origin = '*';
+  } else if (corsEnv) {
+    origin = corsEnv.split(',');
+    if (origin.length === 1) origin = origin[0];
+  } else if (process.env.NODE_ENV === 'production') {
+    origin = '*';
+  } else {
+    origin = ['http://localhost:4200', 'http://coros.localhost:4200'];
+  }
+
+  app.use(cors({ origin }));
   app.use(express.json());
   app.use('/api', requireApiKey, router);
 
-  app.listen(PORT, () => {
-    console.log(`[Server] Listening on port ${PORT}`);
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`[Server] Listening on 0.0.0.0:${PORT}`);
   });
 
   startCronJobs();

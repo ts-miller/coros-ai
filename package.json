@@ -7,7 +7,8 @@
     "apps/frontend"
   ],
   "scripts": {
-    "dev": "docker compose up --build",
+    "dev:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
+    "prod:up": "docker compose up --build -d",
     "dev:stop": "docker compose down",
     "dev:backend": "npm run dev --workspace=apps/backend",
     "dev:frontend": "npm run start --workspace=apps/frontend",

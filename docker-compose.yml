@@ -28,7 +28,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       API_KEY: ${API_KEY}
-      CORS_ORIGIN: http://localhost:4200
+      CORS_ORIGIN: http://localhost:4200,http://coros.localhost:4200
     ports:
       - "3000:3000"
     depends_on:

@@ -86,6 +86,13 @@
             "development": {
               "buildTarget": "frontend:build:development",
               "proxyConfig": "proxy.conf.json"
+            },
+            "custom": {
+              "buildTarget": "frontend:build:development",
+              "proxyConfig": "proxy.conf.json",
+              "allowedHosts": [
+                ".localhost"
+              ]
             }
           },
           "defaultConfiguration": "development"
