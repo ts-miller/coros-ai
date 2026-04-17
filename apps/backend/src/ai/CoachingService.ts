@@ -135,8 +135,12 @@ PHASE 3: MICRO-CYCLE GENERATION (7-Day Plan)
 4. Incorporate secondaryGoals: If a tune-up race exists this week, prioritize it. Schedule a rest/shakeout day before and make the race the "long run" for that week.
 5. 80/20 principle: 80% easy, 20% hard. Never two hard sessions back-to-back.
 6. Schedule stability: Avoid unnecessary shuffling of established routines unless physiological signals (HRV) or missed workouts require it.
-7. All paces in seconds per km. All distances in metres.
-8. Respond ONLY with the JSON object containing progressStatus, progressNotes, and plan.`;
+7. Intensity Targets:
+   - For "Easy Run", "Recovery Run", and "Long Run": Use targetHrZone (1-5). Avoid targetPace unless it is a "Steady" run.
+   - For "Intervals", "Tempo Run", and "VO2max": Use targetPace (seconds per km).
+   - For "Rest": No targets.
+8. All paces in seconds per km. All distances in metres.
+9. Respond ONLY with the JSON object containing progressStatus, progressNotes, and plan.`;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -194,6 +198,12 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   if (!user) throw new Error('User not found');
 
   // Fetch data
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+
   const [settings, goals, activities, healthMetrics] = await Promise.all([
     prisma.settings.findUnique({ where: { userId: user.id } }),
     prisma.goal.findMany({ where: { userId: user.id, status: 'ACTIVE' } }),
@@ -213,7 +223,6 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   const secondaryGoals = goals.filter(g => !g.isPrimary);
 
   // ── Build structured goal context ────────────────────────────────────────────
-  const today = new Date();
   const todayMs = today.getTime();
   let weeksUntilRace: number | null = null;
   if (primaryGoal?.targetDate) {
@@ -246,13 +255,15 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   const hrvContext = { latestHrv, hrv7dAvg, hrvFlag, note: 'HRV measurements from COROS.' };
 
   const userContent = JSON.stringify({
-    today: today.toISOString().slice(0, 10),
+    today: todayStr,
     primaryGoal: goalContext,
     secondaryGoals: secondaryGoals.map(g => ({ title: g.title, type: g.type, date: g.targetDate?.toISOString().slice(0, 10) })),
     hrvContext,
     activities,
     healthMetrics,
   }, null, 2);
+
+  console.log('sending prompt to Gemini')
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -284,9 +295,26 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   let generated = 0;
   for (const day of result.plan) {
     const dateInt = Number(day.date.replace(/-/g, ''));
+
+    // Find all existing plans for this date to handle potential duplicates from previous bug
+    const existingPlans = await prisma.workoutPlan.findMany({
+      where: { date: dateInt },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const primaryPlan = existingPlans[0];
+
+    // Clean up duplicates if they exist
+    if (existingPlans.length > 1) {
+      const idsToDelete = existingPlans.slice(1).map(p => p.id);
+      await prisma.workoutPlan.deleteMany({
+        where: { id: { in: idsToDelete } },
+      });
+    }
+
     await prisma.workoutPlan.upsert({
       where: {
-        id: (await prisma.workoutPlan.findFirst({ where: { date: dateInt, status: 'PENDING' } }))?.id ?? -1,
+        id: primaryPlan?.id ?? -1,
       },
       create: {
         date: dateInt,
@@ -312,7 +340,10 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
 function getDateIntDaysAgo(n: number): number {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return Number(d.toISOString().slice(0, 10).replace(/-/g, ''));
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return Number(`${year}${month}${day}`);
 }
 
 // ─── Race Predictions ─────────────────────────────────────────────────────────

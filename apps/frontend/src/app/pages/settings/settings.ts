@@ -132,7 +132,7 @@ export class Settings implements OnInit {
       next: (r) => {
         this.error.set(null);
         this.pushing.set(false);
-        this.snack.open(`Pushed ${r.pushed}, failed ${r.failed}`, 'OK', { duration: 4000 });
+        this.snack.open(`Synced ${r.pushed}, failed ${r.failed}`, 'OK', { duration: 4000 });
       },
       error: (e: Error) => {
         this.error.set(e.message);

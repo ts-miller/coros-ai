@@ -7,12 +7,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CorosApiService, WorkoutPlan } from '../../services/coros-api';
 
 @Component({
   selector: 'app-schedule',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatChipsModule, MatIconModule, MatProgressSpinnerModule, MatExpansionModule, MatSnackBarModule],
+  imports: [CommonModule, MatCardModule, MatButtonModule, MatChipsModule, MatIconModule, MatProgressSpinnerModule, MatExpansionModule, MatSnackBarModule, MatTooltipModule],
   templateUrl: './schedule.html',
   styleUrl: './schedule.scss',
 })
@@ -81,7 +82,10 @@ export class Schedule implements OnInit {
 
   formatDateInt(d: number): string {
     const s = String(d);
-    return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const year = Number(s.slice(0, 4));
+    const month = Number(s.slice(4, 6)) - 1;
+    const day = Number(s.slice(6, 8));
+    return new Date(year, month, day).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
   formatDistance(meters: number | undefined): string {
@@ -107,6 +111,14 @@ export class Schedule implements OnInit {
   }
 
   statusColor(status: string): string {
-    return ({ PENDING: 'accent', PUSHED: 'primary', FAILED: 'warn', SKIPPED: '' } as Record<string,string>)[status] ?? '';
+    return ({ PENDING: 'accent', PUSHED: 'primary', FAILED: 'warn', SKIPPED: '' } as Record<string, string>)[status] ?? '';
+  }
+
+  statusIcon(status: string): string {
+    return ({ PENDING: 'schedule', PUSHED: 'check_circle', FAILED: 'error', SKIPPED: 'block' } as Record<string, string>)[status] ?? 'help_outline';
+  }
+
+  statusLabel(status: string): string {
+    return status === 'PUSHED' ? 'Synced' : status.charAt(0) + status.slice(1).toLowerCase();
   }
 }

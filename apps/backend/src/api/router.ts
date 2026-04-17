@@ -6,6 +6,7 @@ import { runHealthMetricSync } from '../sync/HealthMetricSyncService.js';
 import { runAiCoaching, getAiPredictions, validateGoal } from '../ai/CoachingService.js';
 import { runWorkoutPush } from '../sync/WorkoutPushService.js';
 import { GoalType, GoalStatus, ExperienceLevel } from '@prisma/client';
+import { getDateIntDaysAgo, getDateIntDaysAhead } from '../lib/date.js';
 
 export const router = Router();
 
@@ -349,17 +350,3 @@ router.post(
 router.get('/ping', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() });
 });
-
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-
-function getDateIntDaysAgo(n: number): number {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return Number(d.toISOString().slice(0, 10).replace(/-/g, ''));
-}
-
-function getDateIntDaysAhead(n: number): number {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return Number(d.toISOString().slice(0, 10).replace(/-/g, ''));
-}

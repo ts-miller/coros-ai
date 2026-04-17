@@ -197,12 +197,13 @@ export interface CorosWorkoutStep {
   nameText: string;
   sortNo: number;
   sportType: number;
-  targetType: number;  // 1=pace, 2=duration(s), 3=reps, 4=distance(m)
+  targetType: number;  // 1=duration(s), 3=reps, 5=distance(cm)
   targetValue: number;
+  targetValue2?: number;
   restType: number;
   restValue: number;
   sets: number;
-  intensityType: number; // 0=none, 1=pace zone, 2=hr zone
+  intensityType: number; // 0=none, 3=pace zone, 2=hr zone
   intensityValue: number;
   intensityDisplayUnit: string;
   isGroup: boolean;
@@ -248,9 +249,37 @@ export interface CorosWorkoutPayload {
 }
 
 export interface CorosCalculateResult {
-  duration: number;
-  totalSets: number;
-  trainingLoad: number;
+  actualDistance: string;
+  actualDuration: number;
+  actualElevGain: number;
+  actualPitch: number;
+  actualTrainingLoad: number;
+  distanceDisplayUnit: number;
+  exerciseBarChart: ScheduleExerciseBarChartItem[];
+  planDistance: string;
+  planDuration: number;
+  planElevGain: number;
+  planPitch: number;
+  planSets: number;
+  planTrainingLoad: number;
+}
+
+export interface CorosScheduleUpdatePayload {
+  entities: {
+    happenDay: string;
+    idInPlan: number;
+    sortNo: number;
+    dayNo: number;
+    sortNoInPlan: number;
+    sortNoInSchedule: number;
+    exerciseBarChart: ScheduleExerciseBarChartItem[];
+  }[];
+  programs: (CorosWorkoutPayload & {
+    exerciseBarChart: ScheduleExerciseBarChartItem[];
+    pitch: number;
+  })[];
+  versionObjects: { id: number; status: number }[];
+  pbVersion: number;
 }
 
 // ─── Training Analysis (/analyse/query) ──────────────────────────────────────

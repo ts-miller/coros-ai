@@ -8,7 +8,7 @@
       </button>
       <button mat-flat-button color="primary" (click)="push()" [disabled]="pushing()">
         @if (pushing()) { <mat-spinner diameter="18" /> } @else { <mat-icon>sync</mat-icon> }
-        Push to Watch
+        Sync to Watch
       </button>
     </div>
   </div>
@@ -29,8 +29,8 @@
           <mat-card-header>
             <mat-card-title>{{ plan.title }}</mat-card-title>
             <mat-card-subtitle>{{ formatDateInt(plan.date) }}</mat-card-subtitle>
-            <mat-chip [color]="statusColor(plan.status)" selected class="status-chip">
-              {{ plan.status }}
+            <mat-chip [color]="statusColor(plan.status)" selected class="status-chip" [matTooltip]="statusLabel(plan.status)">
+              <mat-icon>{{ statusIcon(plan.status) }}</mat-icon>
             </mat-chip>
           </mat-card-header>
           <mat-card-content>
