@@ -13,10 +13,6 @@
     </div>
   </div>
 
-  @if (error()) {
-    <div class="error-banner">{{ error() }}</div>
-  }
-
   @if (loading()) {
     <div class="spinner-center"><mat-spinner diameter="48" /></div>
   } @else if (plans().length === 0) {

@@ -6,17 +6,19 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { CorosApiService, WorkoutPlan } from '../../services/coros-api';
 
 @Component({
   selector: 'app-schedule',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatChipsModule, MatIconModule, MatProgressSpinnerModule, MatExpansionModule],
+  imports: [CommonModule, MatCardModule, MatButtonModule, MatChipsModule, MatIconModule, MatProgressSpinnerModule, MatExpansionModule, MatSnackBarModule],
   templateUrl: './schedule.html',
   styleUrl: './schedule.scss',
 })
 export class Schedule implements OnInit {
   private readonly api = inject(CorosApiService);
+  private readonly snack = inject(MatSnackBar);
 
   loading = signal(true);
   error = signal<string | null>(null);
@@ -28,25 +30,46 @@ export class Schedule implements OnInit {
 
   loadSchedule(): void {
     this.loading.set(true);
+    this.error.set(null);
     this.api.getSchedule().subscribe({
       next: (plans) => { this.plans.set(plans); this.loading.set(false); },
-      error: (e: Error) => { this.error.set(e.message); this.loading.set(false); },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.loading.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 
   generate(): void {
     this.generating.set(true);
     this.api.triggerGenerate().subscribe({
-      next: () => { this.generating.set(false); this.loadSchedule(); },
-      error: (e: Error) => { this.error.set(e.message); this.generating.set(false); },
+      next: () => {
+        this.error.set(null);
+        this.generating.set(false);
+        this.loadSchedule();
+      },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.generating.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 
   push(): void {
     this.pushing.set(true);
     this.api.triggerPush().subscribe({
-      next: () => { this.pushing.set(false); this.loadSchedule(); },
-      error: (e: Error) => { this.error.set(e.message); this.pushing.set(false); },
+      next: () => {
+        this.error.set(null);
+        this.pushing.set(false);
+        this.loadSchedule();
+      },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.pushing.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 

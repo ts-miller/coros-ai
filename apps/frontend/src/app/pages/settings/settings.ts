@@ -133,8 +133,16 @@ export class Settings implements OnInit {
       ...(this.settingsForm.corosPassword ? { corosPassword: this.settingsForm.corosPassword } : {}),
     };
     this.api.saveSettings(payload).subscribe({
-      next: () => { this.saving.set(false); this.snack.open('Settings saved!', 'OK', { duration: 3000 }); },
-      error: (e: Error) => { this.error.set(e.message); this.saving.set(false); },
+      next: () => {
+        this.error.set(null);
+        this.saving.set(false);
+        this.snack.open('Settings saved!', 'OK', { duration: 3000 });
+      },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.saving.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 
@@ -163,32 +171,64 @@ export class Settings implements OnInit {
 
     this.savingGoal.set(true);
     this.api.saveGoal(payload).subscribe({
-      next: () => { this.savingGoal.set(false); this.snack.open('Goal saved!', 'OK', { duration: 3000 }); },
-      error: (e: Error) => { this.error.set(e.message); this.savingGoal.set(false); },
+      next: () => {
+        this.error.set(null);
+        this.savingGoal.set(false);
+        this.snack.open('Goal saved!', 'OK', { duration: 3000 });
+      },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.savingGoal.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 
   sync(): void {
     this.syncing.set(true);
     this.api.triggerSync().subscribe({
-      next: (r) => { this.syncing.set(false); this.snack.open(`Synced ${r.synced} activities`, 'OK', { duration: 4000 }); },
-      error: (e: Error) => { this.error.set(e.message); this.syncing.set(false); },
+      next: (r) => {
+        this.error.set(null);
+        this.syncing.set(false);
+        this.snack.open(`Synced ${r.synced} activities`, 'OK', { duration: 4000 });
+      },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.syncing.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 
   generate(): void {
     this.generating.set(true);
     this.api.triggerGenerate().subscribe({
-      next: (r) => { this.generating.set(false); this.snack.open(`Generated ${r.generated} workouts`, 'OK', { duration: 4000 }); },
-      error: (e: Error) => { this.error.set(e.message); this.generating.set(false); },
+      next: (r) => {
+        this.error.set(null);
+        this.generating.set(false);
+        this.snack.open(`Generated ${r.generated} workouts`, 'OK', { duration: 4000 });
+      },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.generating.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 
   push(): void {
     this.pushing.set(true);
     this.api.triggerPush().subscribe({
-      next: (r) => { this.pushing.set(false); this.snack.open(`Pushed ${r.pushed}, failed ${r.failed}`, 'OK', { duration: 4000 }); },
-      error: (e: Error) => { this.error.set(e.message); this.pushing.set(false); },
+      next: (r) => {
+        this.error.set(null);
+        this.pushing.set(false);
+        this.snack.open(`Pushed ${r.pushed}, failed ${r.failed}`, 'OK', { duration: 4000 });
+      },
+      error: (e: Error) => {
+        this.error.set(e.message);
+        this.pushing.set(false);
+        this.snack.open(e.message, 'OK', { duration: 5000, panelClass: 'error-snackbar' });
+      },
     });
   }
 }

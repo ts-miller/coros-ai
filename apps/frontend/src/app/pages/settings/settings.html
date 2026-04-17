@@ -4,10 +4,6 @@
   @if (loading()) {
     <div class="spinner-center"><mat-spinner diameter="48" /></div>
   } @else {
-    @if (error()) {
-      <div class="error-banner">{{ error() }}</div>
-    }
-
     <!-- ─── Coros Account ──────────────────────────────────────────────── -->
     <mat-card class="settings-card">
       <mat-card-header><mat-card-title>Coros Account</mat-card-title></mat-card-header>
