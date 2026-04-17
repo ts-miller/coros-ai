@@ -1,0 +1,22 @@
+services:
+  backend:
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/backend/src:/app/apps/backend/src
+      - ./apps/backend/prisma:/app/apps/backend/prisma
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm run dev"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      target: builder # Only build the builder stage
+    volumes:
+      - ./apps/frontend/src:/app/apps/frontend/src
+      - ./apps/frontend/public:/app/apps/frontend/public
+    # Start ng serve on port 4200 (mapping to 4201 locally)
+    # We use coros.localhost as the host
+    command: npm run start:custom -- --port 4200 --host 0.0.0.0
+    ports:
+      - "4201:4200"
