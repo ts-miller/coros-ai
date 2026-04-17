@@ -84,7 +84,10 @@ export interface AppSettings {
   unitSystem: 'metric' | 'imperial';
 }
 
-export type GoalType = 'RACE' | 'BASE_BUILDING' | 'JUST_RUN';
+export type GoalType = 'RACE' | 'PACE' | 'DISTANCE' | 'JUST_RUN' | 'BASE_BUILDING';
+export type GoalStatus = 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+export type ExperienceLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+export type ProgressStatus = 'ON_TRACK' | 'FALLING_BEHIND' | 'AHEAD' | 'NOT_EVALUATED';
 
 export type RaceDistance =
   | '5K'
@@ -96,30 +99,31 @@ export type RaceDistance =
   | '100K'
   | '100_MILE';
 
-export type ExperienceLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
-
 export interface Goal {
-  id: number;
-  goalType: GoalType;
+  id: string;
+  userId: string;
+  title: string;
+  type: GoalType;
+  status: GoalStatus;
+  isPrimary: boolean;
   raceDistance: RaceDistance | null;
-  /** target finish time in seconds */
+  targetDate: string | null;
   targetTimeSeconds: number | null;
-  /** ISO date string, e.g. '2026-10-04' */
-  raceDate: string | null;
+  progressStatus: ProgressStatus;
+  progressNotes: string | null;
   experienceLevel: ExperienceLevel;
-  /** training days per week, 3–7 */
-  daysPerWeek: number;
+  trainingDaysPerWeek: number;
+  aiWarningIgnored: boolean;
+  archivedReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface GoalPayload {
-  goalType: GoalType;
-  raceDistance: RaceDistance | null;
-  targetTimeSeconds: number | null;
-  raceDate: string | null;
-  experienceLevel: ExperienceLevel;
-  daysPerWeek: number;
+export interface GoalValidationResult {
+  isAttainable: boolean;
+  flagType: 'VOLUME' | 'PACE' | 'BOTH' | 'NONE';
+  warningMessage: string;
+  recommendation: string;
 }
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
@@ -172,12 +176,29 @@ export class CorosApiService {
     return this.unwrap(this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/settings`, data));
   }
 
-  getGoal(): Observable<Goal | null> {
-    return this.unwrap(this.http.get<ApiResponse<Goal | null>>(`${this.baseUrl}/goal`));
+  getGoals(): Observable<Goal[]> {
+    return this.unwrap(this.http.get<ApiResponse<Goal[]>>(`${this.baseUrl}/goals`));
   }
 
-  saveGoal(data: GoalPayload): Observable<Goal> {
-    return this.unwrap(this.http.post<ApiResponse<Goal>>(`${this.baseUrl}/goal`, data));
+  // Backwards compatibility for now
+  getGoal(): Observable<Goal | null> {
+    return this.getGoals().pipe(map(goals => goals.find(g => g.isPrimary && g.status === 'ACTIVE') || goals[0] || null));
+  }
+
+  createGoal(data: Partial<Goal>): Observable<Goal> {
+    return this.unwrap(this.http.post<ApiResponse<Goal>>(`${this.baseUrl}/goals`, data));
+  }
+
+  updateGoal(id: string, data: Partial<Goal>): Observable<Goal> {
+    return this.unwrap(this.http.put<ApiResponse<Goal>>(`${this.baseUrl}/goals/${id}`, data));
+  }
+
+  deleteGoal(id: string): Observable<Goal> {
+    return this.unwrap(this.http.delete<ApiResponse<Goal>>(`${this.baseUrl}/goals/${id}`));
+  }
+
+  validateGoal(data: Partial<Goal>): Observable<GoalValidationResult> {
+    return this.unwrap(this.http.post<ApiResponse<GoalValidationResult>>(`${this.baseUrl}/goals/validate`, data));
   }
 
   triggerSync(): Observable<{ synced: number; errors: number }> {

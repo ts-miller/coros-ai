@@ -43,18 +43,18 @@ export class CorosClient {
     // Persist token so cron jobs don't need to re-login every run
     await prisma.settings.update({
       where: { id: settings.id },
-      data: { accessToken: this.accessToken, userId: this.userId },
+      data: { accessToken: this.accessToken, corosUserId: this.userId },
     });
 
-    console.log('[CorosClient] Logged in, userId:', this.userId);
+    console.log('[CorosClient] Logged in, corosUserId:', this.userId);
   }
 
   /** Load persisted token from DB without re-logging in. */
   async loadToken(): Promise<boolean> {
     const settings = await prisma.settings.findFirst();
-    if (settings?.accessToken && settings.userId) {
+    if (settings?.accessToken && settings.corosUserId) {
       this.accessToken = settings.accessToken;
-      this.userId = settings.userId;
+      this.userId = settings.corosUserId;
       return true;
     }
     return false;

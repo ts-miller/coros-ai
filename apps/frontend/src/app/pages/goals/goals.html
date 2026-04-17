@@ -1,0 +1,204 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">MY RUNNING GOALS</h1>
+    <button mat-flat-button color="primary" (click)="resetForm()" *ngIf="!showForm()">
+      <mat-icon>add</mat-icon> CREATE NEW GOAL
+    </button>
+  </div>
+
+  <div *ngIf="loading()" class="loading-state">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading goals...</p>
+  </div>
+
+  <!-- Goal Form -->
+  <mat-card *ngIf="showForm()" class="goal-form-card">
+    <mat-card-header>
+      <mat-card-title>{{ goalForm.id ? 'EDIT GOAL' : 'CREATE NEW GOAL' }}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="form-grid">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Goal Title (e.g. "Chicago Marathon 2026")</mat-label>
+          <input matInput [(ngModel)]="goalForm.title" placeholder="Name your goal">
+        </mat-form-field>
+
+        <div class="field-group">
+          <p class="field-label">Goal Type</p>
+          <div class="goal-type-row">
+            <button type="button" class="goal-type-btn" [class.selected]="goalForm.goalType === 'RACE'" (click)="goalForm.goalType = 'RACE'">
+              <mat-icon>flag</mat-icon>
+              <span class="goal-type-name">Race</span>
+            </button>
+            <button type="button" class="goal-type-btn" [class.selected]="goalForm.goalType === 'PACE'" (click)="goalForm.goalType = 'PACE'">
+              <mat-icon>speed</mat-icon>
+              <span class="goal-type-name">Pace</span>
+            </button>
+            <button type="button" class="goal-type-btn" [class.selected]="goalForm.goalType === 'DISTANCE'" (click)="goalForm.goalType = 'DISTANCE'">
+              <mat-icon>straighten</mat-icon>
+              <span class="goal-type-name">Distance</span>
+            </button>
+            <button type="button" class="goal-type-btn" [class.selected]="goalForm.goalType === 'BASE_BUILDING'" (click)="goalForm.goalType = 'BASE_BUILDING'">
+              <mat-icon>fitness_center</mat-icon>
+              <span class="goal-type-name">Base</span>
+            </button>
+            <button type="button" class="goal-type-btn" [class.selected]="goalForm.goalType === 'JUST_RUN'" (click)="goalForm.goalType = 'JUST_RUN'">
+              <mat-icon>directions_run</mat-icon>
+              <span class="goal-type-name">Just Run</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-row" *ngIf="goalForm.goalType === 'RACE' || goalForm.goalType === 'PACE' || goalForm.goalType === 'DISTANCE'">
+          <mat-form-field appearance="outline">
+            <mat-label>Distance</mat-label>
+            <mat-select [(ngModel)]="goalForm.raceDistance">
+              <mat-option *ngFor="let d of raceDistances" [value]="d.value">{{ d.label }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Target Date</mat-label>
+            <input matInput [matDatepicker]="picker" [(ngModel)]="goalForm.raceDate">
+            <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker #picker></mat-datepicker>
+          </mat-form-field>
+        </div>
+
+        <div class="field-group" *ngIf="goalForm.goalType === 'RACE' || goalForm.goalType === 'PACE'">
+          <p class="field-label">Target Time <span class="optional-label">(Optional)</span></p>
+          <div class="time-row">
+            <mat-form-field appearance="outline" class="time-field">
+              <mat-label>Hrs</mat-label>
+              <input matInput type="number" [(ngModel)]="goalForm.targetHours" min="0" max="99">
+            </mat-form-field>
+            <span class="time-sep">:</span>
+            <mat-form-field appearance="outline" class="time-field">
+              <mat-label>Min</mat-label>
+              <input matInput type="number" [(ngModel)]="goalForm.targetMinutes" min="0" max="59">
+            </mat-form-field>
+            <span class="time-sep">:</span>
+            <mat-form-field appearance="outline" class="time-field">
+              <mat-label>Sec</mat-label>
+              <input matInput type="number" [(ngModel)]="goalForm.targetSeconds" min="0" max="59">
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Experience Level</mat-label>
+            <mat-select [(ngModel)]="goalForm.experienceLevel">
+              <mat-option value="BEGINNER">Beginner</mat-option>
+              <mat-option value="INTERMEDIATE">Intermediate</mat-option>
+              <mat-option value="ADVANCED">Advanced</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Days Per Week</mat-label>
+            <input matInput type="number" [(ngModel)]="goalForm.daysPerWeek" min="3" max="7">
+          </mat-form-field>
+        </div>
+
+        <div class="form-row checkbox-row">
+          <mat-icon [color]="goalForm.isPrimary ? 'primary' : ''" (click)="goalForm.isPrimary = !goalForm.isPrimary">
+            {{ goalForm.isPrimary ? 'check_box' : 'check_box_outline_blank' }}
+          </mat-icon>
+          <span (click)="goalForm.isPrimary = !goalForm.isPrimary">Make this my Primary Goal (Steers the AI Coach)</span>
+        </div>
+      </div>
+    </mat-card-content>
+    <mat-card-actions align="end">
+      <button mat-button (click)="showForm.set(false)" [disabled]="saving()">CANCEL</button>
+      <button mat-flat-button color="primary" (click)="saveGoal()" [disabled]="saving() || !goalForm.title">
+        <mat-spinner diameter="20" *ngIf="saving()"></mat-spinner>
+        <span *ngIf="!saving()">SAVE GOAL</span>
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <!-- Navigation Buttons as Tabs Replacement -->
+  <div class="tab-nav" *ngIf="!loading() && !showForm()">
+    <button mat-button [class.active-tab]="selectedTab() === 'current'" (click)="selectedTab.set('current')">CURRENT GOALS</button>
+    <button mat-button [class.active-tab]="selectedTab() === 'past'" (click)="selectedTab.set('past')">PAST GOALS</button>
+  </div>
+
+  <div class="tab-content" *ngIf="!loading() && !showForm()">
+    <!-- Current Goals View -->
+    <ng-container *ngIf="selectedTab() === 'current'">
+      <div *ngIf="activeGoals().length === 0" class="empty-state">
+        <mat-icon>outlined_flag</mat-icon>
+        <h3>No active goals</h3>
+        <p>Set a primary goal to start your AI-powered training journey.</p>
+        <button mat-stroked-button color="primary" (click)="resetForm()">+ ADD YOUR FIRST GOAL</button>
+      </div>
+
+      <div *ngFor="let goal of activeGoals()">
+        <mat-card class="goal-card" [class.primary-goal]="goal.isPrimary" *ngIf="goal.isPrimary">
+          <div class="primary-badge" *ngIf="goal.isPrimary">PRIMARY GOAL</div>
+          <mat-card-header>
+            <mat-card-title>{{ goal.title }}</mat-card-title>
+            <mat-card-subtitle>
+              {{ goal.type | titlecase }} 
+              <span *ngIf="goal.raceDistance">• {{ goal.raceDistance }}</span>
+              <span *ngIf="goal.targetDate">• {{ goal.targetDate | date:'mediumDate' }}</span>
+            </mat-card-subtitle>
+            <div class="spacer"></div>
+            <div class="progress-status" [class]="goal.progressStatus">
+              {{ getProgressLabel(goal.progressStatus) }}
+            </div>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="progress-section">
+              <mat-progress-bar mode="determinate" [value]="50" [color]="getProgressColor(goal.progressStatus)"></mat-progress-bar>
+              <p class="progress-notes" *ngIf="goal.progressNotes">{{ goal.progressNotes }}</p>
+            </div>
+
+            <div class="training-params">
+              <mat-chip-set>
+                <mat-chip>{{ goal.experienceLevel }}</mat-chip>
+                <mat-chip>{{ goal.trainingDaysPerWeek }} days/week</mat-chip>
+              </mat-chip-set>
+            </div>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <button mat-button (click)="editGoal(goal)">EDIT</button>
+            <button mat-button color="warn" (click)="deleteGoal(goal.id)">ARCHIVE</button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+
+      <div class="secondary-goals-grid">
+        <mat-card class="goal-card secondary-goal" *ngFor="let goal of activeGoals()" [hidden]="goal.isPrimary">
+          <mat-card-header>
+            <mat-card-title>{{ goal.title }}</mat-card-title>
+            <mat-card-subtitle>{{ goal.targetDate | date:'mediumDate' }} • {{ goal.type }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-actions align="end">
+            <button mat-button (click)="editGoal(goal)">EDIT</button>
+            <button mat-button color="warn" (click)="deleteGoal(goal.id)">ARCHIVE</button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </ng-container>
+
+    <!-- Past Goals View -->
+    <ng-container *ngIf="selectedTab() === 'past'">
+      <div *ngIf="pastGoals().length === 0" class="empty-state">
+        <p>No historical goals found.</p>
+      </div>
+      <div class="past-goals-list">
+        <mat-card class="past-goal-card" *ngFor="let goal of pastGoals()">
+          <mat-card-header>
+            <mat-card-title>{{ goal.title }}</mat-card-title>
+            <mat-card-subtitle>{{ goal.status }} • {{ goal.targetDate | date:'mediumDate' }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <p *ngIf="goal.archivedReason" class="archived-reason">Reason: {{ goal.archivedReason }}</p>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </ng-container>
+  </div>
+</div>

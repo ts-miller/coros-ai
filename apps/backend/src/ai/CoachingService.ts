@@ -1,6 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { prisma } from '../lib/prisma.js';
-import { AiWorkoutDay } from '../types/coros.js';
 
 // ─── Strongly-typed shapes for the Prisma selects used in runAiCoaching ──────
 
@@ -63,119 +62,125 @@ const PLAN_SCHEMA = {
   items: WORKOUT_DAY_SCHEMA,
 };
 
+// ─── JSON Schema for Goal Validation ──────────────────────────────────────────
+
+const GOAL_VALIDATION_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    isAttainable: { type: Type.BOOLEAN },
+    flagType: { type: Type.STRING, enum: ['VOLUME', 'PACE', 'BOTH', 'NONE'] },
+    warningMessage: { type: Type.STRING },
+    recommendation: { type: Type.STRING },
+  },
+  required: ['isAttainable', 'flagType', 'warningMessage', 'recommendation'],
+};
+
+// ─── JSON Schema for the combined output (Progress + Plan) ───────────────────
+
+const COACHING_OUTPUT_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    progressStatus: { type: Type.STRING, enum: ['ON_TRACK', 'FALLING_BEHIND', 'AHEAD'] },
+    progressNotes: { type: Type.STRING },
+    plan: {
+      type: Type.ARRAY,
+      items: WORKOUT_DAY_SCHEMA,
+    },
+  },
+  required: ['progressStatus', 'progressNotes', 'plan'],
+};
+
 // ─── System Prompt ────────────────────────────────────────────────────────────
 
 const SYSTEM_INSTRUCTION = `You are an expert IAAF-certified running coach with 20 years of experience coaching athletes from beginners to sub-elite. You specialise in evidence-based periodisation, progressive overload, and injury prevention.
 
 You will be given a JSON object containing:
-- "goal": a structured object describing the athlete's training goal (see Goal Context rules below)
-- "hrvContext": pre-computed HRV and resting HR readiness signals
-- "activities": an array of recent training activities (from most to least recent)
-- "healthMetrics": an array of daily health data (resting HR, HRV)
+- "primaryGoal": the main structured goal steerining the training.
+- "secondaryGoals": tune-up races or minor goals acting as schedule constraints.
+- "hrvContext": pre-computed HRV and resting HR readiness signals.
+- "activities": an array of recent training activities.
+- "healthMetrics": an array of daily health data.
 
 ────────────────────────────────────────────────────────────────────────────────
-GOAL CONTEXT RULES — apply these to shape the weekly structure
+PHASE 1: PROGRESS EVALUATION
 ────────────────────────────────────────────────────────────────────────────────
+Before generating the plan, evaluate the athlete's progress against the primaryGoal over the last 14 days of "activities".
+Compare actual completion, volume, and paces hit against what is required for the goal distance and target date.
+- ON_TRACK: Meeting volume targets, hitting required paces, good recovery.
+- FALLING_BEHIND: Missed key workouts (long runs), significantly slower paces than required, or poor recovery (tanking HRV).
+- AHEAD: Completing all workouts with ease, paces are faster than target race pace with low heart rate.
 
-The goal.type field will be one of three values:
-
-  RACE — athlete is training for a specific race:
-    - Use classic periodisation: Base → Build → Peak → Taper
-    - Use goal.weeksUntilRace to determine current phase:
-        * >12 weeks: Base phase — high volume, mostly easy running (zones 1–2), strides only, no race-pace work
-        * 8–12 weeks: Build phase — introduce tempo (zone 3), hill repeats, some threshold work
-        * 4–8 weeks: Peak phase — race-specific sessions (intervals at race pace, VO2max work), long run near race distance
-        * 2–4 weeks: Early taper — reduce volume 20%, maintain intensity, no new stress
-        * <2 weeks: Final taper — volume cut 40%, only short easy runs and strides, protect legs
-    - If no raceDate was set, treat as 12 weeks out (Base phase).
-    - Use goal.raceDistance to calibrate long run length and target pace:
-        * 5K: long run up to 10–12 km, intervals at 5K pace
-        * 10K: long run up to 14–16 km, cruise intervals at 10K pace
-        * HALF_MARATHON: long run up to 20–22 km, tempo at HM pace
-        * MARATHON: long run up to 35 km, marathon-pace miles in long run
-        * 50K / 50_MILE / 100K / 100_MILE: trail-focused, back-to-back long runs on weekend, walk breaks acceptable
-    - If goal.targetTimeSeconds is set, calculate target pace from it and use it for pace-specific sessions.
-    - If goal.targetTimeSeconds is not set, estimate appropriate paces from recent activity data.
-
-  BASE_BUILDING — athlete is building general aerobic fitness without a specific race:
-    - Focus entirely on aerobic development: 90%+ of runs in zones 1–2
-    - Long run each weekend, increasing by ~10% per week
-    - No intervals or race-pace work; strides are acceptable once per week after easy runs
-    - Introduce tempo only after 3+ weeks of consistent easy volume
-    - Primary goal: accumulate easy mileage and build the aerobic engine
-
-  JUST_RUN — athlete wants to stay active and enjoy running without aggressive goals:
-    - Maintain current fitness; do not aggressively increase volume or intensity
-    - Provide variety: mix easy runs, one longer run, optional strides
-    - Avoid hard interval sessions; include at most one moderate workout per week
-    - Prioritise enjoyment and consistency over performance metrics
+Output a progressStatus and a brief progressNotes explanation.
 
 ────────────────────────────────────────────────────────────────────────────────
-EXPERIENCE LEVEL CALIBRATION — use goal.experienceLevel
+PHASE 2: MACRO-CYCLE POSITIONING (for the primaryGoal)
 ────────────────────────────────────────────────────────────────────────────────
-
-  BEGINNER:
-    - Maximum 3–4 running days; the remaining days are rest or cross-training
-    - Keep sessions simple: easy run, long run, optional strides
-    - No intervals or structured speedwork in the first weeks
-    - Long run capped at 10–12 km for 5K/10K goals, 18 km for HM goals
-    - Include explicit run/walk guidance in notes if pace exceeds recent ability
-
-  INTERMEDIATE:
-    - Standard periodisation; 4–5 running days per week
-    - One quality session per week (tempo, intervals, or progression run)
-    - Long run up to race distance or 90% thereof
-    - Workout complexity: cruise intervals, threshold repeats, fartlek
-
-  ADVANCED:
-    - 5–7 running days; double days acceptable in peak weeks
-    - Two quality sessions per week separated by at least 2 easy days
-    - Complex sessions: VO2max intervals, race-pace long runs, progression runs, strides after tempos
-    - Long runs can include marathon-pace segments or back-to-back efforts
+The goal.type field will be:
+  RACE / PACE / DISTANCE — athlete has a specific target:
+    - Use weeksUntilRace to determine phase:
+        * >12 weeks: Base phase — high volume, zones 1–2, strides only.
+        * 8–12 weeks: Build phase — introduce tempo (zone 3), hills, threshold.
+        * 3–8 weeks: Peak phase — race-specific paces, VO2max intervals.
+        * 1–3 weeks: Taper phase — reduce volume 30-50%, maintain intensity.
+    - If no targetDate, default to Base Phase.
+  BASE_BUILDING / JUST_RUN:
+    - Locked in Base Phase indefinitely. Focus on aerobic engine.
 
 ────────────────────────────────────────────────────────────────────────────────
-TRAINING DAYS — use goal.daysPerWeek
+PHASE 3: MICRO-CYCLE GENERATION (7-Day Plan)
 ────────────────────────────────────────────────────────────────────────────────
-- Schedule exactly goal.daysPerWeek running days in the 7-day plan.
-- The remaining days must be Rest days (type="Rest").
-- Always include Saturday or Sunday as the long run day.
-- Spread rest days to maximise recovery between hard sessions.
-
-────────────────────────────────────────────────────────────────────────────────
-HRV INTERPRETATION RULES
-────────────────────────────────────────────────────────────────────────────────
-- HRV values are overnight measurements from COROS.
-- Use the pre-computed hrvContext fields; do not re-calculate.
-- hrvFlag = green → proceed with planned load
-- hrvFlag = yellow → reduce intensity by one zone; replace intervals with an easy run
-- hrvFlag = red → easy/recovery day only; no hard efforts this week
-- A rising HRV trend (hrvTrend = rising) over 3+ days: progressive load is safe
-- A falling HRV trend (hrvTrend = falling): hold volume, cut intensity
-- rhrElevated = true reinforces any fatigue signal
-
-────────────────────────────────────────────────────────────────────────────────
-UNIVERSAL RULES
-────────────────────────────────────────────────────────────────────────────────
-1. 80/20 principle: 80% easy (zones 1–2), 20% hard (zones 3–5).
-2. Hard/easy days must alternate; never schedule two hard sessions back-to-back.
-3. Always include at least one full rest day per week.
-4. Progressive overload: increase weekly volume by no more than 10% vs. the previous week.
-5. All paces in seconds per km (e.g. 5:00/km = 300). All distances in metres.
-6. HR zones: 1=very easy (<65% maxHR), 2=easy (65–75%), 3=moderate (75–85%), 4=hard (85–92%), 5=max (>92%).
-7. For rest days: type="Rest", warmup=[], mainSet=[], cooldown=[], estimatedDistance=0.
-8. Every non-rest workout must have a meaningful warmup and cooldown.
-9. Respond ONLY with the JSON array — no markdown, no explanation, no prose.`;
+1. Schedule exactly goal.trainingDaysPerWeek running days.
+2. Incorporate secondaryGoals: If a tune-up race exists this week, prioritize it. Schedule a rest/shakeout day before and make the race the "long run" for that week.
+3. 80/20 principle: 80% easy, 20% hard. Never two hard sessions back-to-back.
+4. Schedule stability: Avoid unnecessary shuffling of established routines unless physiological signals (HRV) or missed workouts require it.
+5. All paces in seconds per km. All distances in metres.
+6. Respond ONLY with the JSON object containing progressStatus, progressNotes, and plan.`;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
-/** Format seconds as H:MM:SS for human-readable goal context */
-function formatSeconds(s: number): string {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
-    : `${m}:${String(sec).padStart(2, '0')}`;
+/** Helper to identify the primary user in this single-user app */
+async function getPrimaryUser() {
+  const email = 'user@example.com';
+  return prisma.user.findUnique({ where: { email } });
+}
+
+export async function validateGoal(payload: any): Promise<any> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY env var is required');
+
+  const ai = new GoogleGenAI({ apiKey });
+  const user = await getPrimaryUser();
+  if (!user) throw new Error('User not found');
+
+  // Gather baseline data
+  const activities = await prisma.activity.findMany({
+    where: { date: { gte: getDateIntDaysAgo(60) } },
+    orderBy: { date: 'desc' },
+  });
+
+  const prompt = `Evaluate the attainability and health risk of this proposed running goal.
+Proposed Goal: ${JSON.stringify(payload)}
+Recent Activity (last 60 days): ${JSON.stringify(activities.slice(0, 30))}
+
+Apply these rules:
+1. Volume: Weekly mileage shouldn't increase >15%. Can they reach peak volume safely before the target date?
+2. Pace: Is the target pace realistic relative to recent paces and the timeframe?
+
+Respond with JSON matching the required schema.`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: GOAL_VALIDATION_SCHEMA,
+      temperature: 0.2,
+    },
+  });
+
+  const text = response.text;
+  if (!text) throw new Error('Empty response from Gemini');
+  return JSON.parse(text);
 }
 
 export async function runAiCoaching(): Promise<{ generated: number }> {
@@ -183,145 +188,67 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
   if (!apiKey) throw new Error('GEMINI_API_KEY env var is required');
 
   const ai = new GoogleGenAI({ apiKey });
+  const user = await getPrimaryUser();
+  if (!user) throw new Error('User not found');
 
-  // Fetch settings and structured goal in parallel
-  const [settings, goal, activities, healthMetrics]: [
-    Awaited<ReturnType<typeof prisma.settings.findFirst>>,
-    Awaited<ReturnType<typeof prisma.goal.findFirst>>,
-    ActivityRow[],
-    HealthMetricRow[],
-  ] = await Promise.all([
-    prisma.settings.findFirst(),
-    prisma.goal.findFirst(),
+  // Fetch data
+  const [settings, goals, activities, healthMetrics] = await Promise.all([
+    prisma.settings.findUnique({ where: { userId: user.id } }),
+    prisma.goal.findMany({ where: { userId: user.id, status: 'ACTIVE' } }),
     prisma.activity.findMany({
       orderBy: { date: 'desc' },
       take: 60,
-      select: {
-        date: true,
-        sportType: true,
-        name: true,
-        distance: true,
-        totalTime: true,
-        avgHr: true,
-        maxHr: true,
-        avgPace: true,
-        trainingLoad: true,
-        aerobicEffect: true,
-        calories: true,
-      },
     }),
     prisma.healthMetric.findMany({
       orderBy: { date: 'desc' },
       take: 30,
-      select: {
-        date: true,
-        restingHr: true,
-        hrv: true,
-        isMock: true,
-      },
     }),
   ]);
 
   if (!settings) throw new Error('No settings found');
 
+  const primaryGoal = goals.find(g => g.isPrimary) || goals[0];
+  const secondaryGoals = goals.filter(g => !g.isPrimary);
+
   // ── Build structured goal context ────────────────────────────────────────────
   const todayMs = Date.now();
-
   let weeksUntilRace: number | null = null;
-  if (goal?.raceDate) {
-    const msUntil = goal.raceDate.getTime() - todayMs;
+  if (primaryGoal?.targetDate) {
+    const msUntil = primaryGoal.targetDate.getTime() - todayMs;
     weeksUntilRace = Math.max(0, Math.round(msUntil / (7 * 24 * 60 * 60 * 1000)));
   }
 
-  const goalContext = goal
-    ? {
-        type: goal.goalType,
-        raceDistance: goal.raceDistance ?? null,
-        targetTime: goal.targetTimeSeconds ? formatSeconds(goal.targetTimeSeconds) : null,
-        targetTimeSeconds: goal.targetTimeSeconds ?? null,
-        raceDate: goal.raceDate ? goal.raceDate.toISOString().slice(0, 10) : null,
-        weeksUntilRace,
-        experienceLevel: goal.experienceLevel,
-        daysPerWeek: goal.daysPerWeek,
-      }
-    : {
-        type: 'BASE_BUILDING',
-        raceDistance: null,
-        targetTime: null,
-        targetTimeSeconds: null,
-        raceDate: null,
-        weeksUntilRace: null,
-        experienceLevel: 'INTERMEDIATE',
-        daysPerWeek: 4,
-        note: 'No goal configured — defaulting to Base Building.',
-      };
-  // ─────────────────────────────────────────────────────────────────────────────
+  const goalContext = primaryGoal ? {
+    id: primaryGoal.id,
+    type: primaryGoal.type,
+    title: primaryGoal.title,
+    raceDistance: primaryGoal.raceDistance,
+    targetDate: primaryGoal.targetDate?.toISOString().slice(0, 10),
+    targetTimeSeconds: primaryGoal.targetTimeSeconds,
+    weeksUntilRace,
+    experienceLevel: primaryGoal.experienceLevel,
+    trainingDaysPerWeek: primaryGoal.trainingDaysPerWeek,
+  } : null;
 
-  // ── Pre-compute HRV context so Gemini doesn't have to derive it ─────────────
-  const hrvValues = healthMetrics
-    .filter((m) => m.hrv !== null)
-    .slice(0, 7)
-    .map((m) => m.hrv as number);
-
-  const hrv7dAvg = hrvValues.length
-    ? Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length)
-    : null;
-
+  // ── Pre-compute HRV context ──────────────────────────────────────────────────
+  const hrvValues = healthMetrics.filter(m => m.hrv !== null).slice(0, 7).map(m => m.hrv as number);
+  const hrv7dAvg = hrvValues.length ? Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length) : null;
   const latestHrv = hrvValues[0] ?? null;
-
-  let hrvFlag: 'green' | 'yellow' | 'red' | 'insufficient' = 'insufficient';
-  if (hrv7dAvg !== null && latestHrv !== null) {
+  let hrvFlag = 'insufficient';
+  if (hrv7dAvg && latestHrv) {
     const ratio = latestHrv / hrv7dAvg;
-    if (ratio >= 0.97) hrvFlag = 'green';
-    else if (ratio >= 0.90) hrvFlag = 'yellow';
-    else hrvFlag = 'red';
+    hrvFlag = ratio >= 0.97 ? 'green' : ratio >= 0.90 ? 'yellow' : 'red';
   }
 
-  const hrvTrend: 'rising' | 'falling' | 'stable' | 'insufficient' =
-    hrvValues.length >= 3
-      ? hrvValues[0] > hrvValues[2]
-        ? 'rising'
-        : hrvValues[0] < hrvValues[2]
-        ? 'falling'
-        : 'stable'
-      : 'insufficient';
+  const hrvContext = { latestHrv, hrv7dAvg, hrvFlag, note: 'HRV measurements from COROS.' };
 
-  const rhrValues = healthMetrics
-    .filter((m) => m.restingHr !== null)
-    .slice(0, 7)
-    .map((m) => m.restingHr as number);
-
-  const rhr7dAvg = rhrValues.length
-    ? Math.round(rhrValues.reduce((a, b) => a + b, 0) / rhrValues.length)
-    : null;
-
-  const latestRhr = rhrValues[0] ?? null;
-  const rhrElevated = rhr7dAvg !== null && latestRhr !== null && latestRhr - rhr7dAvg > 5;
-
-  const hrvContext = {
-    latestHrv,
-    hrv7dAvg,
-    hrvFlag,
-    hrvTrend,
-    latestRhr,
-    rhr7dAvg,
-    rhrElevated,
-    note: 'HRV values are overnight measurements from COROS avgSleepHrv. Sleep duration not available.',
-  };
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const userContent = JSON.stringify(
-    {
-      goal: goalContext,
-      hrvContext,
-      activities,
-      healthMetrics,
-    },
-    null,
-    2,
-  );
-
-  console.log('[AICoach] Sending request to Gemini...');
+  const userContent = JSON.stringify({
+    primaryGoal: goalContext,
+    secondaryGoals: secondaryGoals.map(g => ({ title: g.title, type: g.type, date: g.targetDate?.toISOString().slice(0, 10) })),
+    hrvContext,
+    activities,
+    healthMetrics,
+  }, null, 2);
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -329,52 +256,45 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       responseMimeType: 'application/json',
-      responseSchema: PLAN_SCHEMA,
+      responseSchema: COACHING_OUTPUT_SCHEMA,
       temperature: 0.4,
     },
   });
 
-  const raw = response.text;
-  if (!raw) throw new Error('Gemini returned empty response');
+  const text = response.text;
+  if (!text) throw new Error('Empty response from Gemini');
+  const result = JSON.parse(text);
 
-  let plan: AiWorkoutDay[];
-  try {
-    plan = JSON.parse(raw) as AiWorkoutDay[];
-  } catch {
-    throw new Error(`Failed to parse Gemini JSON: ${raw.slice(0, 500)}`);
+  // Update Progress Status in DB
+  if (primaryGoal) {
+    await prisma.goal.update({
+      where: { id: primaryGoal.id },
+      data: {
+        progressStatus: result.progressStatus,
+        progressNotes: result.progressNotes,
+      },
+    });
   }
 
-  if (!Array.isArray(plan) || plan.length === 0) {
-    throw new Error('Gemini returned an empty or invalid plan');
-  }
-
-  console.log(`[AICoach] Received ${plan.length} workout days from Gemini`);
-
-  // Upsert workout plans
+  // Upsert plans
   let generated = 0;
-  for (const day of plan) {
+  for (const day of result.plan) {
     const dateInt = Number(day.date.replace(/-/g, ''));
-
     await prisma.workoutPlan.upsert({
       where: {
-        id: (
-          await prisma.workoutPlan.findFirst({
-            where: { date: dateInt, status: 'PENDING' },
-            select: { id: true },
-          })
-        )?.id ?? -1,
+        id: (await prisma.workoutPlan.findFirst({ where: { date: dateInt, status: 'PENDING' } }))?.id ?? -1,
       },
       create: {
         date: dateInt,
         title: day.title,
         description: `${day.type}: ${day.notes}`,
-        stepsJson: day as unknown as object,
+        stepsJson: day as object,
         status: 'PENDING',
       },
       update: {
         title: day.title,
         description: `${day.type}: ${day.notes}`,
-        stepsJson: day as unknown as object,
+        stepsJson: day as object,
         status: 'PENDING',
         pushError: null,
       },
@@ -382,8 +302,13 @@ export async function runAiCoaching(): Promise<{ generated: number }> {
     generated++;
   }
 
-  console.log(`[AICoach] Saved ${generated} workout plans`);
   return { generated };
+}
+
+function getDateIntDaysAgo(n: number): number {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return Number(d.toISOString().slice(0, 10).replace(/-/g, ''));
 }
 
 // ─── Race Predictions ─────────────────────────────────────────────────────────
@@ -430,8 +355,11 @@ Data: ${JSON.stringify(activities, null, 2)}`;
     },
   });
 
+  const text = response.text;
+  if (!text) throw new Error('Empty response from Gemini');
+
   try {
-    const parsed = JSON.parse(response.text ?? '{}') as RacePredictions;
+    const parsed = JSON.parse(text) as RacePredictions;
     return { ...parsed, generatedAt: new Date().toISOString() };
   } catch {
     return {

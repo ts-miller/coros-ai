@@ -3,17 +3,13 @@ import { prisma } from '../lib/prisma.js';
 import { encrypt } from '../lib/crypto.js';
 import { runActivitySync } from '../sync/ActivitySyncService.js';
 import { runHealthMetricSync } from '../sync/HealthMetricSyncService.js';
-import { runAiCoaching, getAiPredictions } from '../ai/CoachingService.js';
+import { runAiCoaching, getAiPredictions, validateGoal } from '../ai/CoachingService.js';
 import { runWorkoutPush } from '../sync/WorkoutPushService.js';
-import type { GoalType, RaceDistance, ExperienceLevel } from '../types/coros.js';
-
-const VALID_GOAL_TYPES: GoalType[] = ['RACE', 'BASE_BUILDING', 'JUST_RUN'];
-const VALID_RACE_DISTANCES: RaceDistance[] = ['5K', '10K', 'HALF_MARATHON', 'MARATHON', '50K', '50_MILE', '100K', '100_MILE'];
-const VALID_EXPERIENCE_LEVELS: ExperienceLevel[] = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
+import { GoalType, GoalStatus, ExperienceLevel } from '@prisma/client';
 
 export const router = Router();
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function ok(res: Response, data: unknown) {
   return res.json({ success: true, data });
@@ -31,6 +27,21 @@ function asyncHandler(fn: (req: Request, res: Response) => Promise<unknown>) {
       fail(res, 500, message);
     });
   };
+}
+
+/**
+ * Since this is currently a single-user app without real auth,
+ * we use a fixed email to identify the primary user.
+ */
+async function getOrCreateUser() {
+  const email = 'user@example.com';
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: { email },
+    });
+  }
+  return user;
 }
 
 // ─── Activities ───────────────────────────────────────────────────────────────
@@ -135,7 +146,9 @@ router.get(
 router.get(
   '/settings',
   asyncHandler(async (_req, res) => {
-    const settings = await prisma.settings.findFirst({
+    const user = await getOrCreateUser();
+    const settings = await prisma.settings.findUnique({
+      where: { userId: user.id },
       select: { corosEmail: true, unitSystem: true },
     });
     ok(res, settings ?? null);
@@ -151,9 +164,10 @@ router.post(
       unitSystem?: string;
     };
 
-    const existing = await prisma.settings.findFirst();
+    const user = await getOrCreateUser();
+    const existing = await prisma.settings.findUnique({ where: { userId: user.id } });
 
-    const data: Record<string, unknown> = {};
+    const data: any = {};
     if (corosEmail !== undefined) data['corosEmail'] = corosEmail;
     if (corosPassword !== undefined) data['corosPwd'] = encrypt(corosPassword);
     if (unitSystem !== undefined) data['unitSystem'] = unitSystem;
@@ -167,8 +181,10 @@ router.post(
       }
       const created = await prisma.settings.create({
         data: {
+          userId: user.id,
           corosEmail: corosEmail!,
           corosPwd: encrypt(corosPassword!),
+          unitSystem: unitSystem || 'metric',
         },
       });
       ok(res, { id: created.id });
@@ -176,74 +192,128 @@ router.post(
   }),
 );
 
-// ─── Goal ─────────────────────────────────────────────────────────────────────
+// ─── Goals ────────────────────────────────────────────────────────────────────
 
 router.get(
-  '/goal',
+  '/goals',
   asyncHandler(async (_req, res) => {
-    const goal = await prisma.goal.findFirst();
-    ok(res, goal ?? null);
+    const user = await getOrCreateUser();
+    const goals = await prisma.goal.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    ok(res, goals);
   }),
 );
 
 router.post(
-  '/goal',
+  '/goals',
   asyncHandler(async (req, res) => {
+    const user = await getOrCreateUser();
     const {
-      goalType,
+      title,
+      type,
+      isPrimary,
       raceDistance,
+      targetDate,
       targetTimeSeconds,
-      raceDate,
       experienceLevel,
-      daysPerWeek,
-    } = req.body as {
-      goalType?: string;
-      raceDistance?: string | null;
-      targetTimeSeconds?: number | null;
-      raceDate?: string | null;
-      experienceLevel?: string;
-      daysPerWeek?: number;
-    };
+      trainingDaysPerWeek,
+      aiWarningIgnored,
+    } = req.body;
 
-    if (!goalType || !VALID_GOAL_TYPES.includes(goalType as GoalType)) {
-      return fail(res, 400, `goalType must be one of: ${VALID_GOAL_TYPES.join(', ')}`);
-    }
-    if (goalType === 'RACE' && (!raceDistance || !VALID_RACE_DISTANCES.includes(raceDistance as RaceDistance))) {
-      return fail(res, 400, `raceDistance is required for RACE goals and must be one of: ${VALID_RACE_DISTANCES.join(', ')}`);
-    }
-    if (raceDistance !== undefined && raceDistance !== null && !VALID_RACE_DISTANCES.includes(raceDistance as RaceDistance)) {
-      return fail(res, 400, `raceDistance must be one of: ${VALID_RACE_DISTANCES.join(', ')}`);
-    }
-    if (!experienceLevel || !VALID_EXPERIENCE_LEVELS.includes(experienceLevel as ExperienceLevel)) {
-      return fail(res, 400, `experienceLevel must be one of: ${VALID_EXPERIENCE_LEVELS.join(', ')}`);
-    }
-    const days = Number(daysPerWeek);
-    if (!Number.isInteger(days) || days < 3 || days > 7) {
-      return fail(res, 400, 'daysPerWeek must be an integer between 3 and 7');
-    }
-    if (targetTimeSeconds !== undefined && targetTimeSeconds !== null) {
-      if (!Number.isInteger(targetTimeSeconds) || targetTimeSeconds <= 0) {
-        return fail(res, 400, 'targetTimeSeconds must be a positive integer');
-      }
+    if (!title || !type) {
+      return fail(res, 400, 'Title and type are required');
     }
 
-    const data = {
-      goalType: goalType as GoalType,
-      raceDistance: (goalType === 'RACE' ? (raceDistance as RaceDistance) : null),
-      targetTimeSeconds: targetTimeSeconds ?? null,
-      raceDate: raceDate ? new Date(raceDate) : null,
-      experienceLevel: experienceLevel as ExperienceLevel,
-      daysPerWeek: days,
-    };
-
-    const existing = await prisma.goal.findFirst();
-    if (existing) {
-      const updated = await prisma.goal.update({ where: { id: existing.id }, data });
-      ok(res, updated);
-    } else {
-      const created = await prisma.goal.create({ data });
-      ok(res, created);
+    // "One Captain" Rule: Archive existing primary goal if setting a new one as primary
+    if (isPrimary) {
+      await prisma.goal.updateMany({
+        where: { userId: user.id, isPrimary: true, status: 'ACTIVE' },
+        data: { isPrimary: false, status: 'ARCHIVED', archivedReason: 'Replaced by new primary goal' },
+      });
     }
+
+    const goal = await prisma.goal.create({
+      data: {
+        userId: user.id,
+        title,
+        type: type as GoalType,
+        isPrimary: !!isPrimary,
+        raceDistance,
+        targetDate: targetDate ? new Date(targetDate) : null,
+        targetTimeSeconds: targetTimeSeconds ? Number(targetTimeSeconds) : null,
+        experienceLevel: (experienceLevel as ExperienceLevel) || 'INTERMEDIATE',
+        trainingDaysPerWeek: Number(trainingDaysPerWeek) || 4,
+        aiWarningIgnored: !!aiWarningIgnored,
+        status: 'ACTIVE',
+      },
+    });
+
+    ok(res, goal);
+  }),
+);
+
+router.put(
+  '/goals/:id',
+  asyncHandler(async (req, res) => {
+    const user = await getOrCreateUser();
+    const id = req.params['id'] as string;
+    const body = req.body;
+
+    const existing = await prisma.goal.findFirst({
+      where: { id, userId: user.id },
+    });
+
+    if (!existing) return fail(res, 404, 'Goal not found');
+
+    // Handle primary goal switch
+    if (body.isPrimary && !existing.isPrimary) {
+      await prisma.goal.updateMany({
+        where: { userId: user.id, isPrimary: true, status: 'ACTIVE', id: { not: id } },
+        data: { isPrimary: false, status: 'ARCHIVED', archivedReason: 'Replaced by primary goal promotion' },
+      });
+    }
+
+    const data: any = { ...body };
+    if (data.targetDate) data.targetDate = new Date(data.targetDate);
+    if (data.targetTimeSeconds) data.targetTimeSeconds = Number(data.targetTimeSeconds);
+    if (data.trainingDaysPerWeek) data.trainingDaysPerWeek = Number(data.trainingDaysPerWeek);
+
+    const updated = await prisma.goal.update({
+      where: { id },
+      data,
+    });
+
+    ok(res, updated);
+  }),
+);
+
+router.delete(
+  '/goals/:id',
+  asyncHandler(async (req, res) => {
+    const user = await getOrCreateUser();
+    const id = req.params['id'] as string;
+
+    // We could either delete or archive. Requirement says ARCHIVED in status enum.
+    // Let's mark as archived instead of hard delete if it was active.
+    const goal = await prisma.goal.findFirst({ where: { id, userId: user.id } });
+    if (!goal) return fail(res, 404, 'Goal not found');
+
+    const updated = await prisma.goal.update({
+      where: { id },
+      data: { status: 'ARCHIVED', isPrimary: false },
+    });
+
+    ok(res, updated);
+  }),
+);
+
+router.post(
+  '/goals/validate',
+  asyncHandler(async (req, res) => {
+    const result = await validateGoal(req.body);
+    ok(res, result);
   }),
 );
 

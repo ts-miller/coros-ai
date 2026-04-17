@@ -28,6 +28,7 @@ export class App {
     { path: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { path: 'schedule', label: 'Schedule', icon: 'event' },
     { path: 'predictions', label: 'Predictions', icon: 'trending_up' },
+    { path: 'goals', label: 'Goals', icon: 'flag' },
     { path: 'settings', label: 'Settings', icon: 'settings' },
   ];
 

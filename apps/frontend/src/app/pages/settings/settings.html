@@ -24,117 +24,6 @@
       </mat-card-actions>
     </mat-card>
 
-    <!-- ─── Training Goal ─────────────────────────────────────────────── -->
-    <mat-card class="settings-card">
-      <mat-card-header>
-        <mat-card-title>Training Goal</mat-card-title>
-        <mat-card-subtitle>Tell the AI coach what you're training for</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-
-        <!-- Goal Type Selector -->
-        <p class="field-label">What are you training for?</p>
-        <div class="goal-type-row">
-          <button
-            class="goal-type-btn"
-            [class.selected]="goalForm.goalType === 'RACE'"
-            (click)="goalForm.goalType = 'RACE'"
-            type="button">
-            <mat-icon>flag</mat-icon>
-            <span class="goal-type-name">Race</span>
-            <span class="goal-type-desc">Training for a specific event</span>
-          </button>
-          <button
-            class="goal-type-btn"
-            [class.selected]="goalForm.goalType === 'BASE_BUILDING'"
-            (click)="goalForm.goalType = 'BASE_BUILDING'"
-            type="button">
-            <mat-icon>trending_up</mat-icon>
-            <span class="goal-type-name">Base Building</span>
-            <span class="goal-type-desc">Build aerobic fitness</span>
-          </button>
-          <button
-            class="goal-type-btn"
-            [class.selected]="goalForm.goalType === 'JUST_RUN'"
-            (click)="goalForm.goalType = 'JUST_RUN'"
-            type="button">
-            <mat-icon>directions_run</mat-icon>
-            <span class="goal-type-name">Just Run</span>
-            <span class="goal-type-desc">Stay active and enjoy it</span>
-          </button>
-        </div>
-
-        <!-- Race-specific fields -->
-        @if (goalForm.goalType === 'RACE') {
-          <mat-form-field appearance="outline" class="full-width" style="margin-top: 16px;">
-            <mat-label>Race Distance</mat-label>
-            <mat-select [(ngModel)]="goalForm.raceDistance">
-              @for (d of raceDistances; track d.value) {
-                <mat-option [value]="d.value">{{ d.label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Target Race Date</mat-label>
-            <input matInput [matDatepicker]="racePicker" [(ngModel)]="goalForm.raceDate" />
-            <mat-datepicker-toggle matIconSuffix [for]="racePicker" />
-            <mat-datepicker #racePicker />
-          </mat-form-field>
-
-          <p class="field-label">Target Finish Time <span class="optional-label">(optional)</span></p>
-          <div class="time-row">
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>Hours</mat-label>
-              <input matInput type="number" min="0" max="99" [(ngModel)]="goalForm.targetHours" placeholder="0" />
-            </mat-form-field>
-            <span class="time-sep">:</span>
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>Minutes</mat-label>
-              <input matInput type="number" min="0" max="59" [(ngModel)]="goalForm.targetMinutes" placeholder="00" />
-            </mat-form-field>
-            <span class="time-sep">:</span>
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>Seconds</mat-label>
-              <input matInput type="number" min="0" max="59" [(ngModel)]="goalForm.targetSeconds" placeholder="00" />
-            </mat-form-field>
-          </div>
-        }
-
-        <mat-divider class="section-divider" />
-
-        <!-- Training Preferences -->
-        <p class="field-label">Experience Level</p>
-        <mat-button-toggle-group
-          [(ngModel)]="goalForm.experienceLevel"
-          aria-label="Experience Level"
-          class="experience-toggle">
-          <mat-button-toggle value="BEGINNER">Beginner</mat-button-toggle>
-          <mat-button-toggle value="INTERMEDIATE">Intermediate</mat-button-toggle>
-          <mat-button-toggle value="ADVANCED">Advanced</mat-button-toggle>
-        </mat-button-toggle-group>
-
-        <p class="field-label" style="margin-top: 20px;">Training Days per Week</p>
-        <div class="days-row">
-          @for (d of [3, 4, 5, 6, 7]; track d) {
-            <button
-              class="day-btn"
-              [class.selected]="goalForm.daysPerWeek === d"
-              (click)="goalForm.daysPerWeek = d"
-              type="button">
-              {{ d }}
-            </button>
-          }
-        </div>
-
-      </mat-card-content>
-      <mat-card-actions>
-        <button mat-flat-button color="primary" (click)="saveGoal()" [disabled]="savingGoal()">
-          @if (savingGoal()) { <mat-spinner diameter="18" /> } @else { Save Goal }
-        </button>
-      </mat-card-actions>
-    </mat-card>
-
     <!-- ─── Appearance ─────────────────────────────────────────────────── -->
     <mat-card class="settings-card">
       <mat-card-header><mat-card-title>Appearance</mat-card-title></mat-card-header>
@@ -176,7 +65,7 @@
     <mat-divider />
 
     <!-- ─── Manual Controls ───────────────────────────────────────────── -->
-    <mat-card class="settings-card">
+    <mat-card class="settings-card" style="margin-top: 24px;">
       <mat-card-header><mat-card-title>Manual Controls</mat-card-title></mat-card-header>
       <mat-card-content class="controls-row">
         <button mat-stroked-button (click)="sync()" [disabled]="syncing()">

@@ -15,6 +15,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/predictions/predictions').then((m) => m.Predictions),
   },
   {
+    path: 'goals',
+    loadComponent: () => import('./pages/goals/goals').then((m) => m.Goals),
+  },
+  {
     path: 'settings',
     loadComponent: () => import('./pages/settings/settings').then((m) => m.Settings),
   },

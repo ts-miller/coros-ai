@@ -6,6 +6,11 @@ import { requireApiKey } from './api/authMiddleware.js';
 import { startCronJobs } from './jobs/scheduler.js';
 import { prisma } from './lib/prisma.js';
 
+// BigInt serialization fix for JSON.stringify (Prisma returns BigInt for some fields)
+(BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 const PORT = process.env.PORT ?? 3000;
 
 async function main() {
